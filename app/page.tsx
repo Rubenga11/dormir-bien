@@ -50,12 +50,20 @@ export default function LandingPage() {
             <Link href="/app" className="btn-primary">
               {hero.cta}
             </Link>
-            <Link
-              href="/blog"
-              className="text-xs tracking-[0.25em] text-lavender/70 hover:text-lavender transition-colors uppercase mt-2"
-            >
-              Blog
-            </Link>
+            <div className="flex items-center gap-4 mt-2">
+              <Link
+                href="/blog"
+                className="text-xs tracking-[0.25em] text-lavender/70 hover:text-lavender transition-colors uppercase"
+              >
+                Blog
+              </Link>
+              <Link
+                href="/retiros"
+                className="text-xs tracking-[0.25em] text-accent hover:text-moon transition-colors uppercase font-medium"
+              >
+                Retiros
+              </Link>
+            </div>
           </div>
         </section>
 
