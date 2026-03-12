@@ -13,38 +13,52 @@ export async function POST(req: NextRequest) {
   const sb = createAdminClient()
   const results: string[] = []
 
-  // 1. Check and add email columns to users
+  // 1. Check email columns
   const { error: colCheck } = await sb.from('users').select('email').limit(0)
   if (colCheck && colCheck.message.includes('email')) {
-    // Column doesn't exist — use rpc to run ALTER TABLE
-    const { error: alterErr } = await sb.rpc('exec_sql', {
-      query: "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email TEXT; ALTER TABLE public.users ADD COLUMN IF NOT EXISTS consiente_email BOOLEAN DEFAULT false;"
-    })
-    if (alterErr) {
-      results.push(`email columns: FAILED (${alterErr.message}) — run manually in Supabase SQL Editor`)
-    } else {
-      results.push('email columns: added')
-    }
+    results.push('email columns: MISSING — need ALTER TABLE in Supabase SQL Editor')
   } else {
     results.push('email columns: already exist')
   }
 
-  // 2. Ensure storage bucket exists
-  const { data: buckets } = await sb.storage.listBuckets()
-  const bucketExists = buckets?.some(b => b.id === 'images')
-  if (!bucketExists) {
-    const { error: bucketErr } = await sb.storage.createBucket('images', {
-      public: true,
-      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'],
-      fileSizeLimit: 5 * 1024 * 1024,
+  // 2. Ensure storage bucket — use direct REST API
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  try {
+    // List buckets
+    const listRes = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+      headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
     })
-    if (bucketErr) {
-      results.push(`storage bucket: FAILED (${bucketErr.message})`)
+    const buckets = await listRes.json()
+    results.push(`storage list: ${listRes.status} — ${JSON.stringify(buckets)}`)
+
+    const exists = Array.isArray(buckets) && buckets.some((b: { id: string }) => b.id === 'images')
+
+    if (!exists) {
+      const createRes = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+        method: 'POST',
+        headers: {
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: 'images',
+          name: 'images',
+          public: true,
+          allowed_mime_types: ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'],
+          file_size_limit: 5242880
+        })
+      })
+      const createBody = await createRes.text()
+      results.push(`storage create: ${createRes.status} — ${createBody}`)
     } else {
-      results.push('storage bucket: created')
+      results.push('storage bucket: already exists')
     }
-  } else {
-    results.push('storage bucket: already exists')
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    results.push(`storage error: ${msg}`)
   }
 
   return NextResponse.json({ results })
