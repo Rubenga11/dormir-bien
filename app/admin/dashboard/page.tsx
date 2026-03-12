@@ -296,9 +296,22 @@ export default function AdminDashboard() {
   const [retreats, setRetreats] = useState<Retreat[]>([])
   const [retreatsLoaded, setRetreatsLoaded] = useState(false)
   const [editingRetreat, setEditingRetreat] = useState<Retreat | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const router = useRouter()
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    setUploadingImage(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+      if (!res.ok) { const err = await res.json(); showToast(err.error || 'Error subiendo archivo'); return null }
+      const { url } = await res.json()
+      return url
+    } finally { setUploadingImage(false) }
+  }
 
   const fetchSection = useCallback(async (section: string) => {
     const res = await fetch(`/api/admin/stats?section=${section}`)
@@ -394,9 +407,16 @@ export default function AdminDashboard() {
   const handleBlogSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    const file = fd.get('image_file') as File | null
+    let image_url = fd.get('image_url') as string
+    if (file && file.size > 0) {
+      const uploaded = await uploadFile(file)
+      if (uploaded) image_url = uploaded
+      else return
+    }
     const body = {
       title: fd.get('title') as string,
-      image_url: fd.get('image_url') as string,
+      image_url,
       description: fd.get('description') as string,
       body: fd.get('body') as string,
       published: fd.get('published') === 'on',
@@ -428,9 +448,16 @@ export default function AdminDashboard() {
   const handleRetreatSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    const file = fd.get('image_file') as File | null
+    let image_url = fd.get('image_url') as string
+    if (file && file.size > 0) {
+      const uploaded = await uploadFile(file)
+      if (uploaded) image_url = uploaded
+      else return
+    }
     const body = {
       title: fd.get('title') as string,
-      image_url: fd.get('image_url') as string,
+      image_url,
       description: fd.get('description') as string,
       start_date: fd.get('start_date') as string,
       end_date: fd.get('end_date') as string,
@@ -983,7 +1010,11 @@ export default function AdminDashboard() {
               </div>
               <form onSubmit={handleBlogSubmit} className="flex flex-col gap-3">
                 <input name="title" className="form-input" placeholder="Título" defaultValue={editingPost?.title || ''} required />
-                <input name="image_url" className="form-input" placeholder="URL de imagen" defaultValue={editingPost?.image_url || ''} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Imagen (subir archivo o pegar URL)</label>
+                  <input name="image_file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="form-input text-[0.58rem] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[0.52rem] file:bg-white/10 file:text-moon hover:file:bg-white/20" />
+                  <input name="image_url" className="form-input" placeholder="...o URL de imagen" defaultValue={editingPost?.image_url || ''} />
+                </div>
                 <input name="description" className="form-input" placeholder="Descripción corta" defaultValue={editingPost?.description || ''} required />
                 <textarea name="body" className="form-textarea" placeholder="Contenido (markdown)" defaultValue={editingPost?.body || ''} required />
                 <label className="flex items-center gap-2 text-[0.62rem] text-moon cursor-pointer">
@@ -1052,7 +1083,11 @@ export default function AdminDashboard() {
               </div>
               <form onSubmit={handleRetreatSubmit} className="flex flex-col gap-3">
                 <input name="title" className="form-input" placeholder="Título" defaultValue={editingRetreat?.title || ''} required />
-                <input name="image_url" className="form-input" placeholder="URL de imagen" defaultValue={editingRetreat?.image_url || ''} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Imagen (subir archivo o pegar URL)</label>
+                  <input name="image_file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="form-input text-[0.58rem] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[0.52rem] file:bg-white/10 file:text-moon hover:file:bg-white/20" />
+                  <input name="image_url" className="form-input" placeholder="...o URL de imagen" defaultValue={editingRetreat?.image_url || ''} />
+                </div>
                 <input name="description" className="form-input" placeholder="Descripción" defaultValue={editingRetreat?.description || ''} required />
                 <div className="grid grid-cols-2 gap-3">
                   <input name="start_date" type="date" className="form-input" placeholder="Fecha inicio" defaultValue={editingRetreat?.start_date?.slice(0,10) || ''} required />
