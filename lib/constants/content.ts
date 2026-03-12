@@ -62,8 +62,11 @@ export const CONTENT = {
       genero:    'Género',
       edad:      'Edad',
       medicacion:'¿Tomas medicación para dormir?',
-      localidad: 'Localidad',
+      ciudad:    'Ciudad',
+      cp:        'Código postal',
       horas:     'Horas de sueño habituales',
+      email:     'Email',
+      consentimiento: 'Acepto recibir información y novedades por email',
     },
     options: {
       genero:    ['Hombre', 'Mujer', 'Otro'],

@@ -26,11 +26,19 @@ export function useBreathEngine() {
   const isPausedRef    = useRef(false)
   const currentPatRef  = useRef<BreathPattern | null>(null)
 
+  // Auto-stop después de 10 minutos
+  const MAX_SESSION_MS = 600_000
+  const maxTimerRef        = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoStopStartRef   = useRef<number>(0)       // timestamp cuando se inició/reanudó
+  const autoStopRemainingRef = useRef<number>(MAX_SESSION_MS) // ms restantes
+
   const clearTimers = useCallback(() => {
     if (mainTimerRef.current)  clearTimeout(mainTimerRef.current)
     if (countdownRef.current)  clearInterval(countdownRef.current)
+    if (maxTimerRef.current)   clearTimeout(maxTimerRef.current)
     mainTimerRef.current  = null
     countdownRef.current  = null
+    maxTimerRef.current   = null
   }, [])
 
   // Cuenta regresiva visual — actualiza cada 250ms para suavidad
@@ -92,6 +100,26 @@ export function useBreathEngine() {
     }
   }, [startCountdown, playInhale, playExhale, playHold])
 
+  // Auto-stop: programa el temporizador con el tiempo restante
+  const scheduleAutoStop = useCallback((remainingMs: number) => {
+    if (maxTimerRef.current) clearTimeout(maxTimerRef.current)
+    autoStopRemainingRef.current = remainingMs
+    autoStopStartRef.current = Date.now()
+    maxTimerRef.current = setTimeout(() => {
+      // Se acabó el tiempo — parar limpiamente
+      isRunningRef.current  = false
+      isPausedRef.current   = false
+      currentPatRef.current = null
+      // Limpiar timers de fase (no llamamos clearTimers para evitar limpiar maxTimerRef ya disparado)
+      if (mainTimerRef.current)  clearTimeout(mainTimerRef.current)
+      if (countdownRef.current)  clearInterval(countdownRef.current)
+      mainTimerRef.current  = null
+      countdownRef.current  = null
+      maxTimerRef.current   = null
+      setState(INITIAL_STATE)
+    }, remainingMs)
+  }, [])
+
   // Iniciar sesión
   // IMPORTANTE: initAudio() DEBE llamarse desde el event handler del botón AudioGate
   const start = useCallback((pattern: BreathPattern) => {
@@ -110,23 +138,29 @@ export function useBreathEngine() {
       phaseSecondsRemaining: 0,
     })
 
+    scheduleAutoStop(MAX_SESSION_MS)
     runCycle(pattern)
-  }, [initAudio, clearTimers, runCycle])
+  }, [initAudio, clearTimers, runCycle, scheduleAutoStop])
 
   // Pausar / Reanudar
   const togglePause = useCallback(() => {
     if (!isRunningRef.current) return
 
     if (!isPausedRef.current) {
+      // Pausar — calcular tiempo restante del auto-stop
+      const elapsed = Date.now() - autoStopStartRef.current
+      autoStopRemainingRef.current = Math.max(0, autoStopRemainingRef.current - elapsed)
       isPausedRef.current = true
       clearTimers()
       setState(prev => ({ ...prev, isPaused: true, currentPhase: 'idle', phaseSecondsRemaining: 0 }))
     } else {
+      // Reanudar — reprogramar auto-stop con tiempo restante
       isPausedRef.current = false
       setState(prev => ({ ...prev, isPaused: false }))
+      scheduleAutoStop(autoStopRemainingRef.current)
       if (currentPatRef.current) runCycle(currentPatRef.current)
     }
-  }, [clearTimers, runCycle])
+  }, [clearTimers, runCycle, scheduleAutoStop])
 
   // Parar sesión
   const stop = useCallback(() => {

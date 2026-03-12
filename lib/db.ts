@@ -7,6 +7,7 @@
 export {
   insertUser,
   getUsers,
+  getUserById,
   updateUser,
   insertSession,
   getSessionsByUser,
@@ -17,4 +18,24 @@ export {
   getByMedicacion,
   getByTecnica,
   getByHoras,
+  // Sessions
+  getAllSessions,
+  getSessionsSummary,
+  getSessionsByTecnica,
+  getSessionsByDay,
+  getSessionsByHour,
+  getEngagementDistribution,
+  // Correlations
+  getTecnicaByGenero,
+  getTecnicaByEdad,
+  getTecnicaByMedicacion,
+  getCompletionByMedicacion,
+  getDuracionByEdad,
+  getHorasSuenoByTecnica,
+  getMedicacionByHorasSueno,
+  // Geographic
+  getUsersByCountry,
+  getUsersByCiudad,
+  getSessionsByCountry,
+  getGeoTable,
 } from './mock/db'

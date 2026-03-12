@@ -1,6 +1,6 @@
 // app/api/export/json/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getUsers } from '@/lib/db'
+import { getUsers, getAllSessions, getSessionsSummary } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const cookie = req.cookies.get('breathe-admin-token')
@@ -8,10 +8,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const data = getUsers()
+  const includeSessions = req.nextUrl.searchParams.get('include') === 'sessions'
+  const userData = getUsers()
   const date = new Date().toISOString().slice(0, 10)
 
-  return new NextResponse(JSON.stringify(data, null, 2), {
+  let payload: unknown
+  if (includeSessions) {
+    const sessionData = getAllSessions().map(s => ({
+      patron: s.patron,
+      duracion_segundos: s.duracion_segundos,
+      completada: s.completada,
+      created_at: s.created_at,
+    }))
+    payload = {
+      usuarios: userData,
+      sesiones: sessionData,
+      resumen_sesiones: getSessionsSummary(),
+    }
+  } else {
+    payload = userData
+  }
+
+  return new NextResponse(JSON.stringify(payload, null, 2), {
     headers: {
       'Content-Type':        'application/json',
       'Content-Disposition': `attachment; filename="breathe_datos_${date}.json"`,

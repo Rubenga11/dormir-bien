@@ -277,17 +277,17 @@ body {
   transition: opacity .3s ease;
 }
 
-/* Botones de sesión — casi invisibles, aparecen al tocar */
+/* Botones de sesión — aparecen al tocar */
 .session-hint {
   position: absolute; bottom: 2.5rem; left: 0; right: 0;
   display: flex; justify-content: center; gap: 1.5rem;
-  opacity: .12;
+  opacity: .25;
   transition: opacity .5s;
 }
-.session-hint.visible { opacity: .7; }
+.session-hint.visible { opacity: 1; }
 .hint-btn {
-  background: transparent;
-  border: 1px solid rgba(184,189,232,.3);
+  background: rgba(184,189,232,.1);
+  border: 1px solid rgba(184,189,232,.45);
   color: var(--lavender);
   width: 44px; height: 44px; border-radius: 50%;
   font-size: 1rem; cursor: pointer;
@@ -295,7 +295,7 @@ body {
   transition: all .3s;
   font-family: 'DM Mono', monospace;
 }
-.hint-btn:hover { border-color: var(--lavender); color: var(--moon); }
+.hint-btn:hover { background: rgba(184,189,232,.18); border-color: var(--lavender); color: var(--moon); }
 
 /* ════════════════════════════════════════
    BREATH CARDS (selector)
@@ -354,6 +354,103 @@ body {
 .pill-o { background:rgba(180,160,100,.14); color:#e8d8b0; border:1px solid rgba(180,160,100,.2); }
 .pill-y { background:rgba(99,102,184,.2);   color:var(--accent); border:1px solid rgba(99,102,184,.3); }
 .pill-n { background:rgba(184,189,232,.05); color:var(--lavender); border:1px solid rgba(184,189,232,.1); }
+
+/* ════════════════════════════════════════
+   NOTIFICACIÓN TOAST
+   ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   PESTAÑAS DEL DASHBOARD
+   ════════════════════════════════════════ */
+.tab-bar {
+  display: flex;
+  gap: .4rem;
+  overflow-x: auto;
+  padding-bottom: .5rem;
+  margin-bottom: 1.2rem;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-item {
+  padding: .5rem 1rem;
+  border-radius: 50px;
+  font-family: 'DM Mono', monospace;
+  font-size: .56rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--lavender);
+  background: transparent;
+  border: 1px solid rgba(184,189,232,.1);
+  cursor: pointer;
+  transition: all .3s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tab-item:hover { border-color: var(--lavender); color: var(--moon); }
+.tab-item.active {
+  background: var(--glow);
+  border-color: var(--glow);
+  color: var(--star);
+}
+
+/* ════════════════════════════════════════
+   HEATMAP
+   ════════════════════════════════════════ */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 3px;
+}
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: rgba(99,102,184,.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .42rem;
+  color: var(--lavender);
+  transition: background .3s;
+  position: relative;
+}
+.heatmap-cell.intensity-1 { background: rgba(99,102,184,.2); }
+.heatmap-cell.intensity-2 { background: rgba(99,102,184,.35); }
+.heatmap-cell.intensity-3 { background: rgba(99,102,184,.55); color: var(--star); }
+.heatmap-cell.intensity-4 { background: rgba(168,158,214,.7); color: var(--star); }
+
+/* ════════════════════════════════════════
+   SUBTÍTULOS E INSIGHTS
+   ════════════════════════════════════════ */
+.chart-subtitle {
+  font-size: .54rem;
+  color: var(--lavender);
+  margin-top: .6rem;
+  line-height: 1.5;
+  opacity: .85;
+}
+.insight-card {
+  background: rgba(99,102,184,.08);
+  border: 1px solid rgba(99,102,184,.2);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-bottom: .8rem;
+  font-size: .58rem;
+  color: var(--moon);
+  line-height: 1.6;
+}
+.insight-card strong { color: var(--accent); }
+
+/* ════════════════════════════════════════
+   PRINT STYLES
+   ════════════════════════════════════════ */
+@media print {
+  body { background: white; color: #1a1a1a; }
+  .stars-bg, .aurora-bg, .tab-bar, .btn-ghost, .toast, .back-btn { display: none !important; }
+  .kpi-card, .chart-box, .insight-card {
+    background: white; border: 1px solid #ddd; break-inside: avoid;
+  }
+  .bar-fill { background: #6366b8; }
+  .text-moon, .text-lavender, .text-star { color: #1a1a1a !important; }
+}
 
 /* ════════════════════════════════════════
    NOTIFICACIÓN TOAST

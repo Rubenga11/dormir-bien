@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   genero           TEXT NOT NULL CHECK (genero IN ('Hombre','Mujer','Otro')),
   edad             TEXT NOT NULL CHECK (edad IN ('18–24','25–34','35–44','45–54','55–64','65+')),
   medicacion       TEXT NOT NULL CHECK (medicacion IN ('Sí, habitualmente','A veces','No')),
-  localidad        TEXT NOT NULL,
+  ciudad           TEXT NOT NULL,
+  cp               TEXT NOT NULL DEFAULT '',
   horas_sueno      TEXT NOT NULL CHECK (horas_sueno IN ('Menos de 5h','5–6h','6–7h','7–8h','Más de 8h')),
   tecnica_favorita TEXT CHECK (tecnica_favorita IN ('Sueño Delta','Sueño Profundo','Adormecimiento','Relajación')),
   ip_hash          TEXT,
@@ -53,7 +54,8 @@ VALUES (1, 0) ON CONFLICT (id) DO NOTHING;
 --  ÍNDICES
 -- ──────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_users_genero     ON public.users (genero);
-CREATE INDEX IF NOT EXISTS idx_users_localidad  ON public.users (localidad);
+CREATE INDEX IF NOT EXISTS idx_users_ciudad     ON public.users (ciudad);
+CREATE INDEX IF NOT EXISTS idx_users_cp        ON public.users (cp);
 CREATE INDEX IF NOT EXISTS idx_users_edad       ON public.users (edad);
 CREATE INDEX IF NOT EXISTS idx_users_medicacion ON public.users (medicacion);
 CREATE INDEX IF NOT EXISTS idx_users_tecnica    ON public.users (tecnica_favorita);
@@ -128,7 +130,7 @@ CREATE OR REPLACE VIEW admin_dashboard_summary AS
   SELECT
     (SELECT COUNT(*) FROM public.users)::int                              AS total_usuarios,
     (SELECT total_sessions FROM public.global_stats WHERE id=1)::int      AS total_sesiones,
-    (SELECT COUNT(DISTINCT LOWER(TRIM(localidad))) FROM public.users)::int AS total_localidades,
+    (SELECT COUNT(DISTINCT LOWER(TRIM(ciudad))) FROM public.users)::int AS total_ciudades,
     ROUND(
       (SELECT COUNT(*) FROM public.users WHERE medicacion='Sí, habitualmente')
       * 100.0 / NULLIF((SELECT COUNT(*) FROM public.users),0), 1
@@ -173,21 +175,21 @@ CREATE OR REPLACE VIEW admin_by_horas AS
 --  Descomentar solo en desarrollo
 -- ──────────────────────────────────────────────────────
 /*
-INSERT INTO public.users (genero,edad,medicacion,localidad,horas_sueno,tecnica_favorita,created_at) VALUES
-  ('Mujer',  '25–34','No',               'Madrid',    '6–7h',       'Sueño Delta',    '2025-10-05'),
-  ('Hombre', '35–44','Sí, habitualmente','Barcelona', '5–6h',       'Sueño Profundo', '2025-10-08'),
-  ('Mujer',  '18–24','A veces',          'Valencia',  '7–8h',       'Adormecimiento', '2025-10-11'),
-  ('Otro',   '45–54','No',               'Sevilla',   'Menos de 5h','Relajación',     '2025-10-15'),
-  ('Mujer',  '25–34','No',               'Madrid',    '6–7h',       'Sueño Delta',    '2025-10-18'),
-  ('Hombre', '55–64','Sí, habitualmente','Bilbao',    '7–8h',       'Sueño Delta',    '2025-10-22'),
-  ('Mujer',  '35–44','A veces',          'Zaragoza',  '6–7h',       'Sueño Profundo', '2025-10-28'),
-  ('Hombre', '18–24','No',               'Málaga',    '7–8h',       'Adormecimiento', '2025-11-01'),
-  ('Mujer',  '25–34','No',               'Madrid',    'Más de 8h',  'Sueño Delta',    '2025-11-06'),
-  ('Hombre', '45–54','Sí, habitualmente','Barcelona', '5–6h',       'Relajación',     '2025-11-10'),
-  ('Mujer',  '65+',  'A veces',          'Valencia',  '6–7h',       'Sueño Profundo', '2025-11-14'),
-  ('Otro',   '35–44','No',               'Murcia',    '7–8h',       'Sueño Delta',    '2025-11-20'),
-  ('Hombre', '25–34','No',               'Alicante',  '6–7h',       'Adormecimiento', '2025-11-25'),
-  ('Mujer',  '18–24','A veces',          'Valladolid','5–6h',       'Sueño Profundo', '2025-12-01');
+INSERT INTO public.users (genero,edad,medicacion,ciudad,cp,horas_sueno,tecnica_favorita,created_at) VALUES
+  ('Mujer',  '25–34','No',               'Madrid',    '28001','6–7h',       'Sueño Delta',    '2025-10-05'),
+  ('Hombre', '35–44','Sí, habitualmente','Barcelona', '08001','5–6h',       'Sueño Profundo', '2025-10-08'),
+  ('Mujer',  '18–24','A veces',          'Valencia',  '46001','7–8h',       'Adormecimiento', '2025-10-11'),
+  ('Otro',   '45–54','No',               'Sevilla',   '41001','Menos de 5h','Relajación',     '2025-10-15'),
+  ('Mujer',  '25–34','No',               'Madrid',    '28002','6–7h',       'Sueño Delta',    '2025-10-18'),
+  ('Hombre', '55–64','Sí, habitualmente','Bilbao',    '48001','7–8h',       'Sueño Delta',    '2025-10-22'),
+  ('Mujer',  '35–44','A veces',          'Zaragoza',  '50001','6–7h',       'Sueño Profundo', '2025-10-28'),
+  ('Hombre', '18–24','No',               'Málaga',    '29001','7–8h',       'Adormecimiento', '2025-11-01'),
+  ('Mujer',  '25–34','No',               'Madrid',    '28003','Más de 8h',  'Sueño Delta',    '2025-11-06'),
+  ('Hombre', '45–54','Sí, habitualmente','Barcelona', '08002','5–6h',       'Relajación',     '2025-11-10'),
+  ('Mujer',  '65+',  'A veces',          'Valencia',  '46002','6–7h',       'Sueño Profundo', '2025-11-14'),
+  ('Otro',   '35–44','No',               'Murcia',    '30001','7–8h',       'Sueño Delta',    '2025-11-20'),
+  ('Hombre', '25–34','No',               'Alicante',  '03001','6–7h',       'Adormecimiento', '2025-11-25'),
+  ('Mujer',  '18–24','A veces',          'Valladolid','47001','5–6h',       'Sueño Profundo', '2025-12-01');
 
 UPDATE public.global_stats SET total_sessions = 52 WHERE id = 1;
 */

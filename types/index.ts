@@ -60,8 +60,11 @@ export interface UserRegistration {
   genero:          Genero
   edad:            Edad
   medicacion:      Medicacion
-  localidad:       string
+  ciudad:          string
+  cp:              string
   horas_sueno:     HorasSueno
+  email:           string
+  consiente_email: boolean
   tecnica_favorita?: NombrePatron
 }
 
@@ -75,7 +78,7 @@ export interface UserRecord extends UserRegistration {
 export interface DashboardSummary {
   total_usuarios:    number
   total_sesiones:    number
-  total_localidades: number
+  total_ciudades:    number
   pct_medicacion:    number
   nuevos_7dias:      number
   sesiones_7dias:    number

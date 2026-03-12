@@ -20,8 +20,11 @@ interface UserProfile {
   genero: string
   edad: string
   medicacion: string
-  localidad: string
+  ciudad: string
+  cp: string
   horas_sueno: string
+  email: string
+  consiente_email: boolean
 }
 
 function getSavedProfile(): UserProfile | null {
@@ -64,17 +67,25 @@ export default function AppPage() {
 
   // ── FORMULARIO ──
   const [form, setForm] = useState<UserProfile>({
-    genero: '', edad: '', medicacion: '', localidad: '', horas_sueno: ''
+    genero: '', edad: '', medicacion: '', ciudad: '', cp: '', horas_sueno: '', email: '', consiente_email: false
   })
 
   const handleRegistro = async () => {
-    const { genero, edad, medicacion, localidad, horas_sueno } = form
-    if (!genero || !edad || !medicacion || !localidad.trim() || !horas_sueno) {
+    const { genero, edad, medicacion, ciudad, cp, horas_sueno, email, consiente_email } = form
+    if (!genero || !edad || !medicacion || !ciudad.trim() || !cp.trim() || !horas_sueno) {
       showToast('Completa todos los campos')
       return
     }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      showToast('Introduce un email válido')
+      return
+    }
+    if (!consiente_email) {
+      showToast('Debes aceptar recibir comunicaciones')
+      return
+    }
 
-    const profileData: UserProfile = { genero, edad, medicacion, localidad: localidad.trim(), horas_sueno }
+    const profileData: UserProfile = { genero, edad, medicacion, ciudad: ciudad.trim(), cp: cp.trim(), horas_sueno, email: email.trim(), consiente_email }
 
     try {
       const res = await fetch('/api/users', {
@@ -95,13 +106,21 @@ export default function AppPage() {
 
   // ── ACTUALIZAR PERFIL ──
   const handleUpdateProfile = async () => {
-    const { genero, edad, medicacion, localidad, horas_sueno } = form
-    if (!genero || !edad || !medicacion || !localidad.trim() || !horas_sueno) {
+    const { genero, edad, medicacion, ciudad, cp, horas_sueno, email, consiente_email } = form
+    if (!genero || !edad || !medicacion || !ciudad.trim() || !cp.trim() || !horas_sueno) {
       showToast('Completa todos los campos')
       return
     }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      showToast('Introduce un email válido')
+      return
+    }
+    if (!consiente_email) {
+      showToast('Debes aceptar recibir comunicaciones')
+      return
+    }
 
-    const profileData: UserProfile = { genero, edad, medicacion, localidad: localidad.trim(), horas_sueno }
+    const profileData: UserProfile = { genero, edad, medicacion, ciudad: ciudad.trim(), cp: cp.trim(), horas_sueno, email: email.trim(), consiente_email }
     const uid = localStorage.getItem(LS_UID)
 
     if (uid) {
@@ -148,12 +167,24 @@ export default function AppPage() {
   }
 
   // ── SALIR DE SESIÓN ──
-  const handleExit = () => {
+  const handleExit = useCallback(() => {
     stop()
     releaseWakeLock()
     setHintVisible(false)
     setScreen('selector')
-  }
+  }, [stop, releaseWakeLock])
+
+  // Detectar auto-stop del engine (ej. tras 10 min) → limpiar wake lock y volver al selector
+  const prevIsRunningRef = useRef(false)
+  useEffect(() => {
+    const wasRunning = prevIsRunningRef.current
+    prevIsRunningRef.current = engineState.isRunning
+    if (wasRunning && !engineState.isRunning && screen === 'session') {
+      releaseWakeLock()
+      setHintVisible(false)
+      setScreen('selector')
+    }
+  }, [engineState.isRunning, screen, releaseWakeLock])
 
   // ── MOSTRAR CONTROLES AL TOCAR ──
   const handleSessionTouch = () => {
@@ -236,22 +267,38 @@ export default function AppPage() {
         </div>
       </div>
 
-      {/* Localidad */}
-      <div className="mb-5">
-        <label className="block text-[0.58rem] tracking-[0.28em] uppercase text-lavender mb-2">
-          {registro.fields.localidad}
-        </label>
-        <input
-          type="text"
-          className="form-input"
-          placeholder="ej. Madrid, Barcelona\u2026"
-          value={form.localidad}
-          onChange={e => setForm(f => ({ ...f, localidad: e.target.value }))}
-        />
+      {/* Ciudad y CP */}
+      <div className="mb-5 flex gap-3">
+        <div className="flex-1">
+          <label className="block text-[0.58rem] tracking-[0.28em] uppercase text-lavender mb-2">
+            {registro.fields.ciudad}
+          </label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="ej. Madrid"
+            value={form.ciudad}
+            onChange={e => setForm(f => ({ ...f, ciudad: e.target.value }))}
+          />
+        </div>
+        <div className="w-28">
+          <label className="block text-[0.58rem] tracking-[0.28em] uppercase text-lavender mb-2">
+            {registro.fields.cp}
+          </label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="ej. 28001"
+            maxLength={5}
+            pattern="[0-9]{5}"
+            value={form.cp}
+            onChange={e => setForm(f => ({ ...f, cp: e.target.value }))}
+          />
+        </div>
       </div>
 
       {/* Horas de sueño */}
-      <div className="mb-6">
+      <div className="mb-5">
         <label className="block text-[0.58rem] tracking-[0.28em] uppercase text-lavender mb-2">
           {registro.fields.horas}
         </label>
@@ -260,9 +307,38 @@ export default function AppPage() {
           value={form.horas_sueno}
           onChange={e => setForm(f => ({ ...f, horas_sueno: e.target.value }))}
         >
-          <option value="">\u2014 Selecciona \u2014</option>
+          <option value="">— Selecciona —</option>
           {registro.options.horas.map(v => <option key={v}>{v}</option>)}
         </select>
+      </div>
+
+      {/* Email */}
+      <div className="mb-5">
+        <label className="block text-[0.58rem] tracking-[0.28em] uppercase text-lavender mb-2">
+          {registro.fields.email}
+        </label>
+        <input
+          type="email"
+          className="form-input"
+          placeholder="tu@email.com"
+          value={form.email}
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+        />
+      </div>
+
+      {/* Consentimiento */}
+      <div className="mb-6">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 accent-[var(--glow)]"
+            checked={form.consiente_email}
+            onChange={e => setForm(f => ({ ...f, consiente_email: e.target.checked }))}
+          />
+          <span className="text-[0.62rem] text-lavender leading-relaxed">
+            {registro.fields.consentimiento}
+          </span>
+        </label>
       </div>
 
       {mode === 'registro' ? (

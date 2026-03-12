@@ -6,10 +6,14 @@ import { insertUser, getUsers, updateUser } from '@/lib/db'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { genero, edad, medicacion, localidad, horas_sueno, tecnica_favorita } = body
+    const { genero, edad, medicacion, ciudad, cp, horas_sueno, email, consiente_email, tecnica_favorita } = body
 
-    if (!genero || !edad || !medicacion || !localidad?.trim() || !horas_sueno) {
+    if (!genero || !edad || !medicacion || !ciudad?.trim() || !cp?.trim() || !horas_sueno) {
       return NextResponse.json({ error: 'Campos requeridos incompletos' }, { status: 400 })
+    }
+
+    if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
     }
 
     const forwarded = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || ''
@@ -23,8 +27,11 @@ export async function POST(req: NextRequest) {
       genero,
       edad,
       medicacion,
-      localidad: localidad.trim(),
+      ciudad: ciudad.trim(),
+      cp: cp.trim(),
       horas_sueno,
+      email: email.trim(),
+      consiente_email: !!consiente_email,
       tecnica_favorita: tecnica_favorita || null,
       ip_hash: ipHash,
       country: req.headers.get('x-vercel-ip-country') || null,
@@ -51,7 +58,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
-    const { userId, genero, edad, medicacion, localidad, horas_sueno } = body
+    const { userId, genero, edad, medicacion, ciudad, cp, horas_sueno, email, consiente_email } = body
 
     if (!userId) {
       return NextResponse.json({ error: 'userId requerido' }, { status: 400 })
@@ -66,13 +73,19 @@ export async function PATCH(req: NextRequest) {
     if (edad && !validEdad.includes(edad)) return NextResponse.json({ error: 'Edad inv\u00e1lida' }, { status: 400 })
     if (medicacion && !validMedicacion.includes(medicacion)) return NextResponse.json({ error: 'Medicaci\u00f3n inv\u00e1lida' }, { status: 400 })
     if (horas_sueno && !validHoras.includes(horas_sueno)) return NextResponse.json({ error: 'Horas inv\u00e1lidas' }, { status: 400 })
+    if (email !== undefined && (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+    }
 
-    const updates: Record<string, string> = {}
+    const updates: Record<string, string | boolean> = {}
     if (genero) updates.genero = genero
     if (edad) updates.edad = edad
     if (medicacion) updates.medicacion = medicacion
-    if (localidad?.trim()) updates.localidad = localidad.trim()
+    if (ciudad?.trim()) updates.ciudad = ciudad.trim()
+    if (cp?.trim()) updates.cp = cp.trim()
     if (horas_sueno) updates.horas_sueno = horas_sueno
+    if (email !== undefined) updates.email = email.trim()
+    if (consiente_email !== undefined) updates.consiente_email = !!consiente_email
 
     const ok = updateUser(userId, updates)
     if (!ok) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })

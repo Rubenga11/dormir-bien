@@ -3,12 +3,13 @@ import type { UserRecord } from '@/types'
 
 export function toCSV(users: UserRecord[]): string {
   const BOM = '\uFEFF'
-  const headers = ['Género','Edad','Medicación','Localidad','Horas Sueño','Técnica','País','Fecha']
+  const headers = ['Género','Edad','Medicación','Ciudad','CP','Horas Sueño','Técnica','País','Fecha']
   const rows = users.map(u => [
     u.genero,
     u.edad,
     u.medicacion,
-    `"${u.localidad.replace(/"/g, '""')}"`,
+    `"${u.ciudad.replace(/"/g, '""')}"`,
+    u.cp,
     u.horas_sueno,
     u.tecnica_favorita || '–',
     u.country || '–',

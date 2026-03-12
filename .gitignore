@@ -9,3 +9,7 @@ sw.js
 sw.js.map
 workbox-*.js
 workbox-*.js.map
+
+# Project docs and artifacts
+breathe-project-docs/
+breathe-project.zip
