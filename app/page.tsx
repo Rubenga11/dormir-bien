@@ -51,10 +51,10 @@ export default function LandingPage() {
               {hero.cta}
             </Link>
             <Link
-              href="/admin/login"
-              className="text-[0.55rem] tracking-widest text-lavender/30 hover:text-lavender/60 transition-colors uppercase mt-4"
+              href="/blog"
+              className="text-xs tracking-[0.25em] text-lavender/70 hover:text-lavender transition-colors uppercase mt-2"
             >
-              {hero.adminLink}
+              Blog
             </Link>
           </div>
         </section>
