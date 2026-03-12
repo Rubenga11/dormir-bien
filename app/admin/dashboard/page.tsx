@@ -405,37 +405,48 @@ export default function AdminDashboard() {
 
   const handleBlogSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    const file = fd.get('image_file') as File | null
-    let image_url = fd.get('image_url') as string
-    if (file && file.size > 0) {
-      const uploaded = await uploadFile(file)
-      if (uploaded) image_url = uploaded
-      else return
+    try {
+      const fd = new FormData(e.currentTarget)
+      const file = fd.get('image_file') as File | null
+      let image_url = fd.get('image_url') as string
+      if (file && file.size > 0) {
+        const uploaded = await uploadFile(file)
+        if (uploaded) image_url = uploaded
+        else return
+      }
+      const body = {
+        title: fd.get('title') as string,
+        image_url,
+        description: fd.get('description') as string,
+        body: fd.get('body') as string,
+        published: fd.get('published') === 'on',
+      }
+      if (editingPost) {
+        const res = await fetch('/api/admin/blog', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingPost.id, ...body }) })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo actualizar'}`); return }
+        setEditingPost(null)
+        showToast('Artículo actualizado')
+      } else {
+        const res = await fetch('/api/admin/blog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo crear'}`); return }
+        showToast('Artículo creado')
+      }
+      ;(e.target as HTMLFormElement).reset()
+      await refreshBlog()
+    } catch {
+      showToast('Error de conexión al guardar artículo')
     }
-    const body = {
-      title: fd.get('title') as string,
-      image_url,
-      description: fd.get('description') as string,
-      body: fd.get('body') as string,
-      published: fd.get('published') === 'on',
-    }
-    if (editingPost) {
-      await fetch('/api/admin/blog', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingPost.id, ...body }) })
-      setEditingPost(null)
-      showToast('Artículo actualizado')
-    } else {
-      await fetch('/api/admin/blog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      showToast('Artículo creado')
-    }
-    ;(e.target as HTMLFormElement).reset()
-    await refreshBlog()
   }
 
   const handleBlogDelete = async (id: string) => {
-    await fetch('/api/admin/blog', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    showToast('Artículo eliminado')
-    await refreshBlog()
+    try {
+      const res = await fetch('/api/admin/blog', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo eliminar'}`); return }
+      showToast('Artículo eliminado')
+      await refreshBlog()
+    } catch {
+      showToast('Error de conexión al eliminar artículo')
+    }
   }
 
   // ── Retreat handlers
@@ -446,41 +457,52 @@ export default function AdminDashboard() {
 
   const handleRetreatSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    const file = fd.get('image_file') as File | null
-    let image_url = fd.get('image_url') as string
-    if (file && file.size > 0) {
-      const uploaded = await uploadFile(file)
-      if (uploaded) image_url = uploaded
-      else return
+    try {
+      const fd = new FormData(e.currentTarget)
+      const file = fd.get('image_file') as File | null
+      let image_url = fd.get('image_url') as string
+      if (file && file.size > 0) {
+        const uploaded = await uploadFile(file)
+        if (uploaded) image_url = uploaded
+        else return
+      }
+      const body = {
+        title: fd.get('title') as string,
+        image_url,
+        description: fd.get('description') as string,
+        start_date: fd.get('start_date') as string,
+        end_date: fd.get('end_date') as string,
+        location: fd.get('location') as string,
+        price: Number(fd.get('price')) || 0,
+        registration_url: fd.get('registration_url') as string,
+        published: fd.get('published') === 'on',
+      }
+      if (editingRetreat) {
+        const res = await fetch('/api/admin/retreats', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingRetreat.id, ...body }) })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo actualizar'}`); return }
+        setEditingRetreat(null)
+        showToast('Retiro actualizado')
+      } else {
+        const res = await fetch('/api/admin/retreats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo crear'}`); return }
+        showToast('Retiro creado')
+      }
+      ;(e.target as HTMLFormElement).reset()
+      await refreshRetreats()
+    } catch {
+      showToast('Error de conexión al guardar retiro')
     }
-    const body = {
-      title: fd.get('title') as string,
-      image_url,
-      description: fd.get('description') as string,
-      start_date: fd.get('start_date') as string,
-      end_date: fd.get('end_date') as string,
-      location: fd.get('location') as string,
-      price: Number(fd.get('price')) || 0,
-      registration_url: fd.get('registration_url') as string,
-      published: fd.get('published') === 'on',
-    }
-    if (editingRetreat) {
-      await fetch('/api/admin/retreats', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingRetreat.id, ...body }) })
-      setEditingRetreat(null)
-      showToast('Retiro actualizado')
-    } else {
-      await fetch('/api/admin/retreats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      showToast('Retiro creado')
-    }
-    ;(e.target as HTMLFormElement).reset()
-    await refreshRetreats()
   }
 
   const handleRetreatDelete = async (id: string) => {
-    await fetch('/api/admin/retreats', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    showToast('Retiro eliminado')
-    await refreshRetreats()
+    try {
+      const res = await fetch('/api/admin/retreats', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo eliminar'}`); return }
+      showToast('Retiro eliminado')
+      await refreshRetreats()
+    } catch {
+      showToast('Error de conexión al eliminar retiro')
+    }
   }
 
   // ── Loading state
