@@ -1,0 +1,11 @@
+.env.local
+.env*.local
+.next/
+node_modules/
+out/
+dist/
+*.tsbuildinfo
+sw.js
+sw.js.map
+workbox-*.js
+workbox-*.js.map
