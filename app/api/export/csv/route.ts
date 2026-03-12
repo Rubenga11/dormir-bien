@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   }
 
   const includeSessions = req.nextUrl.searchParams.get('include') === 'sessions'
-  const data = getUsers()
+  const data = await getUsers()
 
   const BOM = '\uFEFF'
   const headers = ['Género','Edad','Medicación','Ciudad','CP','Horas Sueño','Técnica','País','Fecha']
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   let csv = BOM + [headers.join(','), ...rows].join('\n')
 
   if (includeSessions) {
-    const sessions = getAllSessions()
+    const sessions = await getAllSessions()
     const sessionHeaders = ['Patrón','Duración (s)','Completada','Fecha']
     const sessionRows = sessions.map(s =>
       [s.patron, s.duracion_segundos ?? '', s.completada ? 'Sí' : 'No', (s.created_at||'').slice(0,19)].join(',')

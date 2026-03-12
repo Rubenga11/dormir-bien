@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
   const section = req.nextUrl.searchParams.get('section') || 'resumen'
 
   if (section === 'sesiones') {
-    const recentSessions = getAllSessions().slice(0, 50).map(s => ({
+    const allSessions = await getAllSessions()
+    const recentSessions = allSessions.slice(0, 50).map(s => ({
       patron: s.patron,
       duracion_segundos: s.duracion_segundos,
       completada: s.completada,
@@ -28,46 +29,46 @@ export async function GET(req: NextRequest) {
     }))
 
     return NextResponse.json({
-      sessionSummary: getSessionsSummary(),
-      sessionsByTecnica: getSessionsByTecnica(),
-      sessionsByDay: getSessionsByDay(90),
-      sessionsByHour: getSessionsByHour(),
-      engagement: getEngagementDistribution(),
+      sessionSummary: await getSessionsSummary(),
+      sessionsByTecnica: await getSessionsByTecnica(),
+      sessionsByDay: await getSessionsByDay(90),
+      sessionsByHour: await getSessionsByHour(),
+      engagement: await getEngagementDistribution(),
       recentSessions,
     })
   }
 
   if (section === 'correlaciones') {
     return NextResponse.json({
-      tecnicaByGenero: getTecnicaByGenero(),
-      tecnicaByEdad: getTecnicaByEdad(),
-      tecnicaByMedicacion: getTecnicaByMedicacion(),
-      completionByMedicacion: getCompletionByMedicacion(),
-      duracionByEdad: getDuracionByEdad(),
-      horasSuenoByTecnica: getHorasSuenoByTecnica(),
-      medicacionByHorasSueno: getMedicacionByHorasSueno(),
+      tecnicaByGenero: await getTecnicaByGenero(),
+      tecnicaByEdad: await getTecnicaByEdad(),
+      tecnicaByMedicacion: await getTecnicaByMedicacion(),
+      completionByMedicacion: await getCompletionByMedicacion(),
+      duracionByEdad: await getDuracionByEdad(),
+      horasSuenoByTecnica: await getHorasSuenoByTecnica(),
+      medicacionByHorasSueno: await getMedicacionByHorasSueno(),
     })
   }
 
   if (section === 'geo') {
     return NextResponse.json({
-      byCountry: getUsersByCountry(),
-      byCiudad: getUsersByCiudad(),
-      sessionsByCountry: getSessionsByCountry(),
-      geoTable: getGeoTable(),
+      byCountry: await getUsersByCountry(),
+      byCiudad: await getUsersByCiudad(),
+      sessionsByCountry: await getSessionsByCountry(),
+      geoTable: await getGeoTable(),
     })
   }
 
-  // Default: resumen (backwards compatible)
-  const allUsers = getUsers()
+  // Default: resumen
+  const allUsers = await getUsers()
 
   return NextResponse.json({
-    summary:      getDashboardSummary(),
-    byGenero:     getByGenero(),
-    byEdad:       getByEdad(),
-    byMedicacion: getByMedicacion(),
-    byTecnica:    getByTecnica(),
-    byHoras:      getByHoras(),
+    summary:      await getDashboardSummary(),
+    byGenero:     await getByGenero(),
+    byEdad:       await getByEdad(),
+    byMedicacion: await getByMedicacion(),
+    byTecnica:    await getByTecnica(),
+    byHoras:      await getByHoras(),
     users:        allUsers.slice(0, 200).map(u => ({
       genero: u.genero,
       edad: u.edad,

@@ -4,20 +4,18 @@ import { notFound } from 'next/navigation'
 import { getBlogPostBySlug, getPublishedBlogPosts } from '@/lib/db'
 import { markdownToHtml } from '@/lib/utils/markdown'
 
-export async function generateStaticParams() {
-  return getPublishedBlogPosts().map(p => ({ slug: p.slug }))
-}
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = getBlogPostBySlug(slug)
+  const post = await getBlogPostBySlug(slug)
   if (!post) return { title: 'No encontrado — Breathe' }
   return { title: `${post.title} — Breathe`, description: post.description }
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = getBlogPostBySlug(slug)
+  const post = await getBlogPostBySlug(slug)
   if (!post) notFound()
 
   const bodyHtml = markdownToHtml(post.body)

@@ -9,12 +9,12 @@ export async function GET(req: NextRequest) {
   }
 
   const includeSessions = req.nextUrl.searchParams.get('include') === 'sessions'
-  const userData = getUsers()
+  const userData = await getUsers()
   const date = new Date().toISOString().slice(0, 10)
 
   let payload: unknown
   if (includeSessions) {
-    const sessionData = getAllSessions().map(s => ({
+    const sessionData = (await getAllSessions()).map(s => ({
       patron: s.patron,
       duracion_segundos: s.duracion_segundos,
       completada: s.completada,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     payload = {
       usuarios: userData,
       sesiones: sessionData,
-      resumen_sesiones: getSessionsSummary(),
+      resumen_sesiones: await getSessionsSummary(),
     }
   } else {
     payload = userData

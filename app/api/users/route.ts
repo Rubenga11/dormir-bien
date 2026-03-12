@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       .digest('hex')
       .slice(0, 16)
 
-    const result = insertUser({
+    const result = await insertUser({
       genero,
       edad,
       medicacion,
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const data = getUsers()
+  const data = await getUsers()
   return NextResponse.json(data)
 }
 
@@ -69,10 +69,10 @@ export async function PATCH(req: NextRequest) {
     const validMedicacion = ['S\u00ed, habitualmente', 'A veces', 'No']
     const validHoras = ['Menos de 5h', '5\u20136h', '6\u20137h', '7\u20138h', 'M\u00e1s de 8h']
 
-    if (genero && !validGenero.includes(genero)) return NextResponse.json({ error: 'G\u00e9nero inv\u00e1lido' }, { status: 400 })
-    if (edad && !validEdad.includes(edad)) return NextResponse.json({ error: 'Edad inv\u00e1lida' }, { status: 400 })
-    if (medicacion && !validMedicacion.includes(medicacion)) return NextResponse.json({ error: 'Medicaci\u00f3n inv\u00e1lida' }, { status: 400 })
-    if (horas_sueno && !validHoras.includes(horas_sueno)) return NextResponse.json({ error: 'Horas inv\u00e1lidas' }, { status: 400 })
+    if (genero && !validGenero.includes(genero)) return NextResponse.json({ error: 'Género inválido' }, { status: 400 })
+    if (edad && !validEdad.includes(edad)) return NextResponse.json({ error: 'Edad inválida' }, { status: 400 })
+    if (medicacion && !validMedicacion.includes(medicacion)) return NextResponse.json({ error: 'Medicación inválida' }, { status: 400 })
+    if (horas_sueno && !validHoras.includes(horas_sueno)) return NextResponse.json({ error: 'Horas inválidas' }, { status: 400 })
     if (email !== undefined && (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
       return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
     }
@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest) {
     if (email !== undefined) updates.email = email.trim()
     if (consiente_email !== undefined) updates.consiente_email = !!consiente_email
 
-    const ok = updateUser(userId, updates)
+    const ok = await updateUser(userId, updates)
     if (!ok) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
     return NextResponse.json({ ok: true })

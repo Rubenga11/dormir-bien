@@ -2,13 +2,15 @@
 import Link from 'next/link'
 import { getPublishedBlogPosts } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Blog — Breathe',
   description: 'Artículos sobre respiración, sueño y bienestar.',
 }
 
-export default function BlogPage() {
-  const posts = getPublishedBlogPosts()
+export default async function BlogPage() {
+  const posts = await getPublishedBlogPosts()
 
   return (
     <>

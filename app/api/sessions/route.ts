@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
     if (!patron) return NextResponse.json({ error: 'patron requerido' }, { status: 400 })
 
-    insertSession({
+    await insertSession({
       user_id: userId || null,
       patron,
       duracion_segundos: duracionSegundos || null,
@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
 
     // Auto-actualizar técnica favorita del usuario
     if (userId) {
-      const topPattern = getMostUsedPattern(userId)
+      const topPattern = await getMostUsedPattern(userId)
       if (topPattern) {
-        updateUser(userId, { tecnica_favorita: topPattern })
+        await updateUser(userId, { tecnica_favorita: topPattern })
       }
     }
 

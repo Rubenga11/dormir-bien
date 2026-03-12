@@ -1,8 +1,6 @@
 // lib/db.ts — Capa de abstracción de base de datos
-// Usa mock en memoria ahora. Para migrar a Supabase:
-// 1. Rellenar .env.local con credenciales de Supabase
-// 2. Cambiar los imports aquí para usar lib/supabase/server.ts
-// 3. Todo lo demás sigue igual
+// Usa Supabase en producción. Para desarrollo local sin Supabase,
+// cambiar el import a './mock/db'
 
 export {
   insertUser,
@@ -53,4 +51,4 @@ export {
   getRetreatById,
   updateRetreat,
   deleteRetreat,
-} from './mock/db'
+} from './supabase/db'

@@ -13,56 +13,56 @@ function authCheck(req: NextRequest): boolean {
   return cookie?.value === process.env.ADMIN_SECRET
 }
 
-function buildReport(type: string) {
+async function buildReport(type: string) {
   switch (type) {
     case 'clinico':
       return {
         tipo: 'Clínico',
-        medicacion: getByMedicacion(),
-        completionByMedicacion: getCompletionByMedicacion(),
-        horasSuenoByTecnica: getHorasSuenoByTecnica(),
-        medicacionByHorasSueno: getMedicacionByHorasSueno(),
-        duracionByEdad: getDuracionByEdad(),
+        medicacion: await getByMedicacion(),
+        completionByMedicacion: await getCompletionByMedicacion(),
+        horasSuenoByTecnica: await getHorasSuenoByTecnica(),
+        medicacionByHorasSueno: await getMedicacionByHorasSueno(),
+        duracionByEdad: await getDuracionByEdad(),
       }
     case 'engagement':
       return {
         tipo: 'Engagement',
-        sessions: getSessionsSummary(),
-        sessionsByTecnica: getSessionsByTecnica(),
-        engagement: getEngagementDistribution(),
-        completionByMedicacion: getCompletionByMedicacion(),
+        sessions: await getSessionsSummary(),
+        sessionsByTecnica: await getSessionsByTecnica(),
+        engagement: await getEngagementDistribution(),
+        completionByMedicacion: await getCompletionByMedicacion(),
       }
     case 'demografico':
       return {
         tipo: 'Demográfico',
-        genero: getByGenero(),
-        edad: getByEdad(),
-        byCountry: getUsersByCountry(),
-        byCiudad: getUsersByCiudad(),
-        sessionsByCountry: getSessionsByCountry(),
+        genero: await getByGenero(),
+        edad: await getByEdad(),
+        byCountry: await getUsersByCountry(),
+        byCiudad: await getUsersByCiudad(),
+        sessionsByCountry: await getSessionsByCountry(),
       }
     default: // completo
       return {
         tipo: 'Completo',
-        summary: getDashboardSummary(),
-        genero: getByGenero(),
-        edad: getByEdad(),
-        medicacion: getByMedicacion(),
-        tecnica: getByTecnica(),
-        horas: getByHoras(),
-        sessions: getSessionsSummary(),
-        sessionsByTecnica: getSessionsByTecnica(),
-        engagement: getEngagementDistribution(),
-        tecnicaByGenero: getTecnicaByGenero(),
-        tecnicaByEdad: getTecnicaByEdad(),
-        tecnicaByMedicacion: getTecnicaByMedicacion(),
-        completionByMedicacion: getCompletionByMedicacion(),
-        duracionByEdad: getDuracionByEdad(),
-        horasSuenoByTecnica: getHorasSuenoByTecnica(),
-        medicacionByHorasSueno: getMedicacionByHorasSueno(),
-        byCountry: getUsersByCountry(),
-        byCiudad: getUsersByCiudad(),
-        sessionsByCountry: getSessionsByCountry(),
+        summary: await getDashboardSummary(),
+        genero: await getByGenero(),
+        edad: await getByEdad(),
+        medicacion: await getByMedicacion(),
+        tecnica: await getByTecnica(),
+        horas: await getByHoras(),
+        sessions: await getSessionsSummary(),
+        sessionsByTecnica: await getSessionsByTecnica(),
+        engagement: await getEngagementDistribution(),
+        tecnicaByGenero: await getTecnicaByGenero(),
+        tecnicaByEdad: await getTecnicaByEdad(),
+        tecnicaByMedicacion: await getTecnicaByMedicacion(),
+        completionByMedicacion: await getCompletionByMedicacion(),
+        duracionByEdad: await getDuracionByEdad(),
+        horasSuenoByTecnica: await getHorasSuenoByTecnica(),
+        medicacionByHorasSueno: await getMedicacionByHorasSueno(),
+        byCountry: await getUsersByCountry(),
+        byCiudad: await getUsersByCiudad(),
+        sessionsByCountry: await getSessionsByCountry(),
       }
   }
 }
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
 
   const type = req.nextUrl.searchParams.get('type') || 'completo'
   const format = req.nextUrl.searchParams.get('format') || 'json'
-  const report = buildReport(type)
+  const report = await buildReport(type)
   const date = new Date().toISOString().slice(0, 10)
 
   if (format === 'csv') {

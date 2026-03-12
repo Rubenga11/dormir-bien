@@ -6,7 +6,7 @@ frontend:
         - npm ci
     build:
       commands:
-        - env | grep -E '^(ADMIN_SECRET|IP_SALT|NEXT_PUBLIC_)' >> .env.production
+        - env | grep -E '^(ADMIN_SECRET|IP_SALT|NEXT_PUBLIC_|SUPABASE_)' >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

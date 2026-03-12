@@ -9,13 +9,13 @@ function authCheck(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  return NextResponse.json(getRetreats())
+  return NextResponse.json(await getRetreats())
 }
 
 export async function POST(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const body = await req.json()
-  const retreat = insertRetreat({
+  const retreat = await insertRetreat({
     title: body.title || '',
     image_url: body.image_url || '',
     description: body.description || '',
@@ -34,16 +34,16 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
   if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
   if (body.price !== undefined) body.price = Number(body.price)
-  const ok = updateRetreat(body.id, body)
+  const ok = await updateRetreat(body.id, body)
   if (!ok) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  return NextResponse.json(getRetreatById(body.id))
+  return NextResponse.json(await getRetreatById(body.id))
 }
 
 export async function DELETE(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
-  const ok = deleteRetreat(id)
+  const ok = await deleteRetreat(id)
   if (!ok) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   return NextResponse.json({ ok: true })
 }
