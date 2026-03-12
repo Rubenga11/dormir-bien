@@ -18,13 +18,24 @@ export async function insertUser(data: {
   horas_sueno: string; email?: string | null; consiente_email?: boolean
   tecnica_favorita?: string | null; ip_hash?: string | null; user_agent?: string | null; country?: string | null
 }): Promise<{ id: string }> {
-  const { data: row, error } = await sb().from('users').insert({
+  const row_data: Record<string, unknown> = {
     genero: data.genero, edad: data.edad, medicacion: data.medicacion,
     ciudad: data.ciudad, cp: data.cp, horas_sueno: data.horas_sueno,
     tecnica_favorita: data.tecnica_favorita || null,
     ip_hash: data.ip_hash || null, user_agent: data.user_agent || null,
     country: data.country || null,
-  }).select('id').single()
+  }
+  if (data.email) row_data.email = data.email
+  if (data.consiente_email !== undefined) row_data.consiente_email = data.consiente_email
+  const { data: row, error } = await sb().from('users').insert(row_data).select('id').single()
+  if (error && (error.message?.includes('email') || error.message?.includes('consiente'))) {
+    // Retry without email columns if they don't exist yet
+    delete row_data.email
+    delete row_data.consiente_email
+    const { data: row2, error: error2 } = await sb().from('users').insert(row_data).select('id').single()
+    if (error2) throw error2
+    return { id: row2.id }
+  }
   if (error) throw error
   return { id: row.id }
 }
