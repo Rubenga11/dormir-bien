@@ -316,15 +316,16 @@ export default function AdminDashboard() {
   const fetchSection = useCallback(async (section: string) => {
     const res = await fetch(`/api/admin/stats?section=${section}`)
     if (res.status === 401) { router.push('/admin/login'); return null }
+    if (!res.ok) { console.error(`Stats ${section} failed:`, res.status); return null }
     return res.json()
   }, [router])
 
   // Initial load
   useEffect(() => {
-    fetchSection('resumen').then(json => {
-      if (json) setData(json)
-      setLoading(false)
-    })
+    fetchSection('resumen')
+      .then(json => { if (json) setData(json) })
+      .catch(err => { console.error('Error loading resumen:', err); showToast('Error al cargar datos del dashboard') })
+      .finally(() => setLoading(false))
   }, [fetchSection])
 
   // Load tab data on demand
@@ -333,29 +334,27 @@ export default function AdminDashboard() {
 
     if (tab === 'sesiones' && !sessionsData) {
       setTabLoading(true)
-      fetchSection('sesiones').then(json => { if (json) setSessionsData(json); setTabLoading(false) })
+      fetchSection('sesiones').then(json => { if (json) setSessionsData(json) }).catch(() => {}).finally(() => setTabLoading(false))
     }
     if (tab === 'correlaciones' && !corrData) {
       setTabLoading(true)
-      fetchSection('correlaciones').then(json => { if (json) setCorrData(json); setTabLoading(false) })
+      fetchSection('correlaciones').then(json => { if (json) setCorrData(json) }).catch(() => {}).finally(() => setTabLoading(false))
     }
     if (tab === 'geo' && !geoData) {
       setTabLoading(true)
-      fetchSection('geo').then(json => { if (json) setGeoData(json); setTabLoading(false) })
+      fetchSection('geo').then(json => { if (json) setGeoData(json) }).catch(() => {}).finally(() => setTabLoading(false))
     }
     if (tab === 'blog' && !blogLoaded) {
       setTabLoading(true)
       fetch('/api/admin/blog').then(r => r.ok ? r.json() : null).then(json => {
         if (json) { setBlogPosts(json); setBlogLoaded(true) }
-        setTabLoading(false)
-      })
+      }).catch(() => {}).finally(() => setTabLoading(false))
     }
     if (tab === 'retiros' && !retreatsLoaded) {
       setTabLoading(true)
       fetch('/api/admin/retreats').then(r => r.ok ? r.json() : null).then(json => {
         if (json) { setRetreats(json); setRetreatsLoaded(true) }
-        setTabLoading(false)
-      })
+      }).catch(() => {}).finally(() => setTabLoading(false))
     }
   }, [tab, loading, sessionsData, corrData, geoData, blogLoaded, retreatsLoaded, fetchSection])
 
@@ -492,7 +491,13 @@ export default function AdminDashboard() {
     </div>
   )
 
-  if (!data) return null
+  if (!data) return (
+    <div className="relative z-10 flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="stars-bg" />
+      <p className="text-lavender text-sm">No se pudieron cargar los datos del dashboard.</p>
+      <button onClick={() => window.location.reload()} className="px-4 py-2 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-500 transition">Reintentar</button>
+    </div>
+  )
 
   const { summary } = data
   const pillClass = (genero: string) =>

@@ -31,7 +31,7 @@ export async function insertUser(data: {
 
 export async function getUsers() {
   const { data, error } = await sb().from('users').select('*').order('created_at', { ascending: false })
-  if (error) throw error
+  if (error) { console.error('getUsers error:', error.message); return [] }
   return data
 }
 
@@ -89,7 +89,8 @@ export async function getAllSessions() {
 
 export async function getDashboardSummary() {
   const users = await getUsers()
-  const { data: sessions } = await sb().from('sessions').select('*')
+  const { data: sessions, error: sessErr } = await sb().from('sessions').select('*')
+  if (sessErr) console.error('getDashboardSummary sessions error:', sessErr.message)
   const sess = sessions || []
   const { data: stats } = await sb().from('global_stats').select('total_sessions').eq('id', 1).single()
 
