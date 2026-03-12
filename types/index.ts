@@ -90,3 +90,30 @@ export interface ChartItem {
   percentage?: number
   color?:      string
 }
+
+export interface BlogPost {
+  id: string
+  title: string
+  slug: string
+  image_url: string
+  description: string
+  body: string
+  published: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Retreat {
+  id: string
+  title: string
+  image_url: string
+  description: string
+  start_date: string
+  end_date: string
+  location: string
+  price: number
+  registration_url: string
+  published: boolean
+  created_at: string
+  updated_at: string
+}

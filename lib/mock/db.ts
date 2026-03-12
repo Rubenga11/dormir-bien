@@ -1,7 +1,7 @@
 // lib/mock/db.ts — Base de datos en memoria (reemplaza Supabase)
 // Preparada para ser sustituida por Supabase cuando haya credenciales
 
-import type { NombrePatron } from '@/types'
+import type { NombrePatron, BlogPost, Retreat } from '@/types'
 
 // ── Tipos internos
 interface MockUser {
@@ -532,6 +532,120 @@ export function getMedicacionByHorasSueno() {
     result[user.horas_sueno][user.medicacion] = (result[user.horas_sueno][user.medicacion] || 0) + 1
   }
   return result
+}
+
+// ══════════════════════════════════════════
+// BLOG
+// ══════════════════════════════════════════
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+const blogPosts: BlogPost[] = [
+  {
+    id: uuid(), title: 'Respiración y sueño: la conexión olvidada', slug: 'respiracion-y-sueno-la-conexion-olvidada',
+    image_url: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800',
+    description: 'Descubre cómo la respiración consciente puede transformar la calidad de tu descanso nocturno.',
+    body: '## Por qué respirar bien cambia todo\n\nCuando nos acostamos, el sistema nervioso necesita pasar del modo **simpático** (alerta) al **parasimpático** (descanso). La respiración lenta y profunda es la herramienta más directa para activar esa transición.\n\n## La ciencia detrás\n\nEstudios recientes muestran que reducir la frecuencia respiratoria a **6 respiraciones por minuto** activa el nervio vago, disminuyendo el cortisol y la frecuencia cardíaca.\n\n## Cómo empezar\n\nPrueba con el patrón *Sueño Delta* de Breathe: inhala 5 segundos, exhala 7 segundos. Sin pausa. Sin esfuerzo.',
+    published: true, created_at: '2025-11-15T10:00:00Z', updated_at: '2025-11-15T10:00:00Z',
+  },
+  {
+    id: uuid(), title: '5 errores que arruinan tu sueño (y cómo evitarlos)', slug: '5-errores-que-arruinan-tu-sueno',
+    image_url: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=800',
+    description: 'Hábitos comunes que sabotean tu descanso sin que te des cuenta.',
+    body: '## Error 1: Pantallas hasta último momento\n\nLa luz azul suprime la melatonina. Intenta dejar el móvil **30 minutos antes** de dormir.\n\n## Error 2: Cenas pesadas\n\nEl sistema digestivo activo dificulta el sueño profundo. Cena ligero al menos **2 horas antes**.\n\n## Error 3: Horarios irregulares\n\nTu reloj biológico necesita consistencia. Acuéstate y levántate a la misma hora, incluso el fin de semana.\n\n## Error 4: Cafeína por la tarde\n\nLa cafeína tiene una vida media de **5-6 horas**. Evítala después de las 14:00.\n\n## Error 5: No tener ritual de sueño\n\nUna rutina predecible señala al cerebro que es hora de dormir. Prueba: respiración guiada → lectura → luces apagadas.',
+    published: true, created_at: '2025-12-01T10:00:00Z', updated_at: '2025-12-01T10:00:00Z',
+  },
+  {
+    id: uuid(), title: 'Meditación vs respiración guiada: ¿qué funciona mejor para dormir?', slug: 'meditacion-vs-respiracion-guiada',
+    image_url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800',
+    description: 'Comparamos dos técnicas populares para conciliar el sueño más rápido.',
+    body: '## Dos caminos, un objetivo\n\nTanto la meditación como la respiración guiada buscan calmar la mente. Pero funcionan de forma diferente.\n\n## Meditación\n\nRequiere práctica y concentración sostenida. Ideal para quienes ya tienen experiencia. Los beneficios aparecen tras semanas de práctica constante.\n\n## Respiración guiada\n\nActúa directamente sobre el sistema nervioso autónomo. **No requiere experiencia previa**. Los efectos son inmediatos: menor frecuencia cardíaca y mayor relajación muscular.\n\n## Nuestra recomendación\n\nSi tu objetivo es dormir *esta noche*, la respiración guiada es más efectiva. Si buscas bienestar general a largo plazo, combina ambas.',
+    published: false, created_at: '2025-12-10T10:00:00Z', updated_at: '2025-12-10T10:00:00Z',
+  },
+]
+
+const retreats: Retreat[] = []
+
+// ── Blog CRUD
+export function insertBlogPost(data: Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'>): BlogPost {
+  const now = new Date().toISOString()
+  const post: BlogPost = {
+    ...data, id: uuid(), slug: slugify(data.title),
+    created_at: now, updated_at: now,
+  }
+  blogPosts.push(post)
+  return post
+}
+
+export function getBlogPosts(): BlogPost[] {
+  return [...blogPosts].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function getPublishedBlogPosts(): BlogPost[] {
+  return blogPosts.filter(p => p.published).sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function getBlogPostById(id: string): BlogPost | undefined {
+  return blogPosts.find(p => p.id === id)
+}
+
+export function getBlogPostBySlug(slug: string): BlogPost | undefined {
+  return blogPosts.find(p => p.slug === slug && p.published)
+}
+
+export function updateBlogPost(id: string, data: Partial<Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'>>): boolean {
+  const post = blogPosts.find(p => p.id === id)
+  if (!post) return false
+  Object.assign(post, data, { updated_at: new Date().toISOString() })
+  if (data.title) post.slug = slugify(data.title)
+  return true
+}
+
+export function deleteBlogPost(id: string): boolean {
+  const idx = blogPosts.findIndex(p => p.id === id)
+  if (idx === -1) return false
+  blogPosts.splice(idx, 1)
+  return true
+}
+
+// ── Retreat CRUD
+export function insertRetreat(data: Omit<Retreat, 'id' | 'created_at' | 'updated_at'>): Retreat {
+  const now = new Date().toISOString()
+  const retreat: Retreat = { ...data, id: uuid(), created_at: now, updated_at: now }
+  retreats.push(retreat)
+  return retreat
+}
+
+export function getRetreats(): Retreat[] {
+  return [...retreats].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function getPublishedRetreats(): Retreat[] {
+  return retreats.filter(r => r.published).sort((a, b) => a.start_date.localeCompare(b.start_date))
+}
+
+export function getRetreatById(id: string): Retreat | undefined {
+  return retreats.find(r => r.id === id)
+}
+
+export function updateRetreat(id: string, data: Partial<Omit<Retreat, 'id' | 'created_at' | 'updated_at'>>): boolean {
+  const retreat = retreats.find(r => r.id === id)
+  if (!retreat) return false
+  Object.assign(retreat, data, { updated_at: new Date().toISOString() })
+  return true
+}
+
+export function deleteRetreat(id: string): boolean {
+  const idx = retreats.findIndex(r => r.id === id)
+  if (idx === -1) return false
+  retreats.splice(idx, 1)
+  return true
 }
 
 // ══════════════════════════════════════════

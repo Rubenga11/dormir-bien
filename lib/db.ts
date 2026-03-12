@@ -38,4 +38,19 @@ export {
   getUsersByCiudad,
   getSessionsByCountry,
   getGeoTable,
+  // Blog
+  insertBlogPost,
+  getBlogPosts,
+  getPublishedBlogPosts,
+  getBlogPostById,
+  getBlogPostBySlug,
+  updateBlogPost,
+  deleteBlogPost,
+  // Retreats
+  insertRetreat,
+  getRetreats,
+  getPublishedRetreats,
+  getRetreatById,
+  updateRetreat,
+  deleteRetreat,
 } from './mock/db'

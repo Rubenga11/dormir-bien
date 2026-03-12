@@ -146,6 +146,9 @@ export default function LandingPage() {
             {footer.tagline}
           </p>
           <div className="flex justify-center gap-6 mt-4">
+            <Link href="/blog" className="text-[0.55rem] text-lavender/25 hover:text-lavender/50 transition-colors">
+              Blog
+            </Link>
             <Link href="/privacidad" className="text-[0.55rem] text-lavender/25 hover:text-lavender/50 transition-colors">
               Política de privacidad
             </Link>

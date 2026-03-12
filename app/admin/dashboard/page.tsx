@@ -1,10 +1,11 @@
 'use client'
 // app/admin/dashboard/page.tsx — Dashboard completo con pestañas
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import type { BlogPost, Retreat } from '@/types'
 
 // ── Tipos locales
-type Tab = 'resumen' | 'sesiones' | 'correlaciones' | 'geo' | 'informes'
+type Tab = 'resumen' | 'sesiones' | 'correlaciones' | 'geo' | 'informes' | 'blog' | 'retiros'
 
 interface DashData {
   summary:      { total_usuarios:number; total_sesiones:number; total_ciudades:number; pct_medicacion:number; nuevos_7dias:number; sesiones_7dias:number; tasa_completacion:number; duracion_media:number }
@@ -289,6 +290,12 @@ export default function AdminDashboard() {
   const [tabLoading, setTabLoading] = useState(false)
   const [toast, setToast]     = useState('')
   const [reportType, setReportType] = useState('completo')
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [blogLoaded, setBlogLoaded] = useState(false)
+  const [editingPost, setEditingPost] = useState<BlogPost | null>(null)
+  const [retreats, setRetreats] = useState<Retreat[]>([])
+  const [retreatsLoaded, setRetreatsLoaded] = useState(false)
+  const [editingRetreat, setEditingRetreat] = useState<Retreat | null>(null)
   const router = useRouter()
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -323,7 +330,21 @@ export default function AdminDashboard() {
       setTabLoading(true)
       fetchSection('geo').then(json => { if (json) setGeoData(json); setTabLoading(false) })
     }
-  }, [tab, loading, sessionsData, corrData, geoData, fetchSection])
+    if (tab === 'blog' && !blogLoaded) {
+      setTabLoading(true)
+      fetch('/api/admin/blog').then(r => r.ok ? r.json() : null).then(json => {
+        if (json) { setBlogPosts(json); setBlogLoaded(true) }
+        setTabLoading(false)
+      })
+    }
+    if (tab === 'retiros' && !retreatsLoaded) {
+      setTabLoading(true)
+      fetch('/api/admin/retreats').then(r => r.ok ? r.json() : null).then(json => {
+        if (json) { setRetreats(json); setRetreatsLoaded(true) }
+        setTabLoading(false)
+      })
+    }
+  }, [tab, loading, sessionsData, corrData, geoData, blogLoaded, retreatsLoaded, fetchSection])
 
   // ── Export handlers
   const handleExportCSV = async (includeSessions = false) => {
@@ -364,6 +385,78 @@ export default function AdminDashboard() {
 
   const handlePrint = () => { window.print() }
 
+  // ── Blog handlers
+  const refreshBlog = async () => {
+    const res = await fetch('/api/admin/blog')
+    if (res.ok) setBlogPosts(await res.json())
+  }
+
+  const handleBlogSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const body = {
+      title: fd.get('title') as string,
+      image_url: fd.get('image_url') as string,
+      description: fd.get('description') as string,
+      body: fd.get('body') as string,
+      published: fd.get('published') === 'on',
+    }
+    if (editingPost) {
+      await fetch('/api/admin/blog', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingPost.id, ...body }) })
+      setEditingPost(null)
+      showToast('Artículo actualizado')
+    } else {
+      await fetch('/api/admin/blog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      showToast('Artículo creado')
+    }
+    ;(e.target as HTMLFormElement).reset()
+    await refreshBlog()
+  }
+
+  const handleBlogDelete = async (id: string) => {
+    await fetch('/api/admin/blog', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    showToast('Artículo eliminado')
+    await refreshBlog()
+  }
+
+  // ── Retreat handlers
+  const refreshRetreats = async () => {
+    const res = await fetch('/api/admin/retreats')
+    if (res.ok) setRetreats(await res.json())
+  }
+
+  const handleRetreatSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const body = {
+      title: fd.get('title') as string,
+      image_url: fd.get('image_url') as string,
+      description: fd.get('description') as string,
+      start_date: fd.get('start_date') as string,
+      end_date: fd.get('end_date') as string,
+      location: fd.get('location') as string,
+      price: Number(fd.get('price')) || 0,
+      registration_url: fd.get('registration_url') as string,
+      published: fd.get('published') === 'on',
+    }
+    if (editingRetreat) {
+      await fetch('/api/admin/retreats', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingRetreat.id, ...body }) })
+      setEditingRetreat(null)
+      showToast('Retiro actualizado')
+    } else {
+      await fetch('/api/admin/retreats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      showToast('Retiro creado')
+    }
+    ;(e.target as HTMLFormElement).reset()
+    await refreshRetreats()
+  }
+
+  const handleRetreatDelete = async (id: string) => {
+    await fetch('/api/admin/retreats', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    showToast('Retiro eliminado')
+    await refreshRetreats()
+  }
+
   // ── Loading state
   if (loading) return (
     <div className="relative z-10 flex items-center justify-center min-h-screen">
@@ -386,6 +479,8 @@ export default function AdminDashboard() {
     { id: 'correlaciones', label: 'Correlaciones' },
     { id: 'geo', label: 'Geográfico' },
     { id: 'informes', label: 'Informes' },
+    { id: 'blog', label: 'Blog' },
+    { id: 'retiros', label: 'Retiros' },
   ]
 
   return (
@@ -872,6 +967,154 @@ export default function AdminDashboard() {
                 <button onClick={() => handleExportJSON(false)} className="btn-ghost text-[0.62rem] px-5 py-2">
                   JSON (solo usuarios)
                 </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ═══════════════════════════════════
+            TAB: BLOG
+            ═══════════════════════════════════ */}
+        {tab === 'blog' && !tabLoading && (
+          <>
+            <div className="chart-box">
+              <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
+                {editingPost ? 'Editar artículo' : 'Nuevo artículo'}
+              </div>
+              <form onSubmit={handleBlogSubmit} className="flex flex-col gap-3">
+                <input name="title" className="form-input" placeholder="Título" defaultValue={editingPost?.title || ''} required />
+                <input name="image_url" className="form-input" placeholder="URL de imagen" defaultValue={editingPost?.image_url || ''} />
+                <input name="description" className="form-input" placeholder="Descripción corta" defaultValue={editingPost?.description || ''} required />
+                <textarea name="body" className="form-textarea" placeholder="Contenido (markdown)" defaultValue={editingPost?.body || ''} required />
+                <label className="flex items-center gap-2 text-[0.62rem] text-moon cursor-pointer">
+                  <input type="checkbox" name="published" defaultChecked={editingPost?.published ?? false} className="accent-[var(--glow)]" />
+                  Publicado
+                </label>
+                <div className="flex gap-2">
+                  <button type="submit" className="btn-primary text-[0.58rem] px-6 py-2">
+                    {editingPost ? 'Guardar cambios' : 'Crear artículo'}
+                  </button>
+                  {editingPost && (
+                    <button type="button" className="btn-ghost text-[0.58rem] px-4 py-2" onClick={() => setEditingPost(null)}>
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="chart-box">
+              <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
+                Artículos ({blogPosts.length})
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-[0.62rem] min-w-[500px]">
+                  <thead>
+                    <tr>
+                      {['Título','Estado','Fecha','Acciones'].map(h => (
+                        <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blogPosts.map(post => (
+                      <tr key={post.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{post.title}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5">
+                          <span className={post.published ? 'pill pill-y' : 'pill pill-n'}>
+                            {post.published ? 'Publicado' : 'Borrador'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{post.created_at.slice(0,10)}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5">
+                          <div className="flex gap-2">
+                            <button className="btn-ghost text-[0.5rem] px-3 py-1" onClick={() => setEditingPost(post)}>Editar</button>
+                            <button className="btn-ghost text-[0.5rem] px-3 py-1 border-red-400/30 text-red-300 hover:border-red-400" onClick={() => handleBlogDelete(post.id)}>Eliminar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ═══════════════════════════════════
+            TAB: RETIROS
+            ═══════════════════════════════════ */}
+        {tab === 'retiros' && !tabLoading && (
+          <>
+            <div className="chart-box">
+              <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
+                {editingRetreat ? 'Editar retiro' : 'Nuevo retiro'}
+              </div>
+              <form onSubmit={handleRetreatSubmit} className="flex flex-col gap-3">
+                <input name="title" className="form-input" placeholder="Título" defaultValue={editingRetreat?.title || ''} required />
+                <input name="image_url" className="form-input" placeholder="URL de imagen" defaultValue={editingRetreat?.image_url || ''} />
+                <input name="description" className="form-input" placeholder="Descripción" defaultValue={editingRetreat?.description || ''} required />
+                <div className="grid grid-cols-2 gap-3">
+                  <input name="start_date" type="date" className="form-input" placeholder="Fecha inicio" defaultValue={editingRetreat?.start_date?.slice(0,10) || ''} required />
+                  <input name="end_date" type="date" className="form-input" placeholder="Fecha fin" defaultValue={editingRetreat?.end_date?.slice(0,10) || ''} required />
+                </div>
+                <input name="location" className="form-input" placeholder="Ubicación" defaultValue={editingRetreat?.location || ''} required />
+                <div className="grid grid-cols-2 gap-3">
+                  <input name="price" type="number" step="0.01" className="form-input" placeholder="Precio (EUR)" defaultValue={editingRetreat?.price || ''} required />
+                  <input name="registration_url" className="form-input" placeholder="URL de registro" defaultValue={editingRetreat?.registration_url || ''} />
+                </div>
+                <label className="flex items-center gap-2 text-[0.62rem] text-moon cursor-pointer">
+                  <input type="checkbox" name="published" defaultChecked={editingRetreat?.published ?? false} className="accent-[var(--glow)]" />
+                  Publicado
+                </label>
+                <div className="flex gap-2">
+                  <button type="submit" className="btn-primary text-[0.58rem] px-6 py-2">
+                    {editingRetreat ? 'Guardar cambios' : 'Crear retiro'}
+                  </button>
+                  {editingRetreat && (
+                    <button type="button" className="btn-ghost text-[0.58rem] px-4 py-2" onClick={() => setEditingRetreat(null)}>
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="chart-box">
+              <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
+                Retiros ({retreats.length})
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-[0.62rem] min-w-[600px]">
+                  <thead>
+                    <tr>
+                      {['Título','Ubicación','Fechas','Precio','Estado','Acciones'].map(h => (
+                        <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {retreats.map(r => (
+                      <tr key={r.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.title}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.location}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.start_date.slice(0,10)} — {r.end_date.slice(0,10)}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.price} &euro;</td>
+                        <td className="px-3 py-2.5 border-b border-white/5">
+                          <span className={r.published ? 'pill pill-y' : 'pill pill-n'}>
+                            {r.published ? 'Publicado' : 'Borrador'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-white/5">
+                          <div className="flex gap-2">
+                            <button className="btn-ghost text-[0.5rem] px-3 py-1" onClick={() => setEditingRetreat(r)}>Editar</button>
+                            <button className="btn-ghost text-[0.5rem] px-3 py-1 border-red-400/30 text-red-300 hover:border-red-400" onClick={() => handleRetreatDelete(r.id)}>Eliminar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>
