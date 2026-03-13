@@ -16,6 +16,26 @@ export function useAudioSynth() {
     if (!ctxRef.current) {
       ctxRef.current = new (window.AudioContext ||
         (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+
+      // iOS Silent Mode unlock: reproducir audio silencioso con <audio> element
+      // para forzar al sistema a activar la salida de audio por altavoz
+      try {
+        const silentDataUri = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+        const audioEl = document.createElement('audio')
+        audioEl.setAttribute('playsinline', '')
+        audioEl.src = silentDataUri
+        audioEl.play().catch(() => {/* ignore — best-effort unlock */})
+      } catch {
+        // ignore — best-effort unlock
+      }
+
+      // Auto-resumir si el AudioContext pasa a suspended (e.g. Android background)
+      const ctx = ctxRef.current
+      ctx.addEventListener('statechange', () => {
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {})
+        }
+      })
     }
     if (ctxRef.current.state === 'suspended') {
       ctxRef.current.resume()
