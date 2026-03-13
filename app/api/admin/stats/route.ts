@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
         tecnica_favorita: u.tecnica_favorita,
         country: u.country,
         created_at: u.created_at,
+        email: u.email,
       })),
     })
   } catch (err: any) {
