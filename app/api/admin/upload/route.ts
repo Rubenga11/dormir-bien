@@ -1,7 +1,7 @@
-// app/api/admin/upload/route.ts — Upload de imágenes via Supabase Storage
+// app/api/admin/upload/route.ts — Upload de imágenes via AWS S3
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { createAdminClient } from '@/lib/supabase/server'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 function authCheck(req: NextRequest): boolean {
   const cookie = req.cookies.get('breathe-admin-token')
@@ -10,22 +10,17 @@ function authCheck(req: NextRequest): boolean {
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
-const BUCKET = 'images'
 
-let bucketReady = false
+const BUCKET = process.env.S3_UPLOAD_BUCKET || 'breathecalm-uploads'
+const REGION = process.env.S3_UPLOAD_REGION || 'eu-west-1'
 
-async function ensureBucket(sb: ReturnType<typeof createAdminClient>) {
-  if (bucketReady) return
-  const { data } = await sb.storage.listBuckets()
-  if (!data?.some(b => b.id === BUCKET)) {
-    await sb.storage.createBucket(BUCKET, {
-      public: true,
-      allowedMimeTypes: ALLOWED_TYPES,
-      fileSizeLimit: MAX_SIZE,
-    })
-  }
-  bucketReady = true
-}
+const s3 = new S3Client({
+  region: REGION,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+  },
+})
 
 export async function POST(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -39,28 +34,22 @@ export async function POST(req: NextRequest) {
     if (file.size > MAX_SIZE) return NextResponse.json({ error: 'Archivo demasiado grande (máx 5 MB)' }, { status: 400 })
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
-    const filename = `${randomUUID()}.${ext}`
-
-    const sb = createAdminClient()
-    await ensureBucket(sb)
+    const key = `uploads/${randomUUID()}.${ext}`
 
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    const { error } = await sb.storage.from(BUCKET).upload(filename, buffer, {
-      contentType: file.type,
-      upsert: false,
-    })
+    await s3.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+    }))
 
-    if (error) {
-      console.error('[upload] Supabase Storage error:', error.message)
-      return NextResponse.json({ error: `Error subiendo archivo: ${error.message}` }, { status: 500 })
-    }
-
-    const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(filename)
-    return NextResponse.json({ url: urlData.publicUrl })
+    const url = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`
+    return NextResponse.json({ url })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error inesperado al subir archivo'
-    console.error('[upload] unexpected:', message)
+    console.error('[upload] S3 error:', message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
