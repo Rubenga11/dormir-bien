@@ -1,0 +1,103 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master, develop]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REPO: breathe-api
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      env_name: ${{ steps.set-env.outputs.env_name }}
+      api_url: ${{ steps.set-env.outputs.api_url }}
+      s3_bucket: ${{ steps.set-env.outputs.s3_bucket }}
+      ecs_cluster: ${{ steps.set-env.outputs.ecs_cluster }}
+      ecs_service: ${{ steps.set-env.outputs.ecs_service }}
+    steps:
+      - id: set-env
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            echo "env_name=prd" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api.breathecalm.es" >> "$GITHUB_OUTPUT"
+            echo "s3_bucket=breathecalm-frontend-prd" >> "$GITHUB_OUTPUT"
+            echo "ecs_cluster=breathe-prd" >> "$GITHUB_OUTPUT"
+            echo "ecs_service=breathe-api-prd" >> "$GITHUB_OUTPUT"
+          else
+            echo "env_name=dev" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api-dev.breathecalm.es" >> "$GITHUB_OUTPUT"
+            echo "s3_bucket=breathecalm-frontend-dev" >> "$GITHUB_OUTPUT"
+            echo "ecs_cluster=breathe-dev" >> "$GITHUB_OUTPUT"
+            echo "ecs_service=breathe-api-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+  frontend:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build static frontend
+        run: npm run build:frontend
+        env:
+          BUILD_TARGET: frontend
+          NEXT_PUBLIC_API_URL: ${{ needs.setup.outputs.api_url }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync to S3
+        run: aws s3 sync out/ s3://${{ needs.setup.outputs.s3_bucket }} --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=${{ needs.setup.outputs.env_name == 'prd' && secrets.CF_DIST_ID_PRD || secrets.CF_DIST_ID_DEV }}
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+
+  backend:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build, tag, push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ needs.setup.outputs.env_name }}-${{ github.sha }}
+          ENV_TAG: ${{ needs.setup.outputs.env_name }}-latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:$ENV_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO:$ENV_TAG
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ needs.setup.outputs.ecs_cluster }} \
+            --service ${{ needs.setup.outputs.ecs_service }} \
+            --force-new-deployment

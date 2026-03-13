@@ -1,0 +1,21 @@
+{
+  "name": "breathe-infra",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy:dev": "cdk deploy 'Breathe-DEV/*' --require-approval never",
+    "deploy:prd": "cdk deploy 'Breathe-PRD/*' --require-approval broadening",
+    "diff": "cdk diff"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.170.0",
+    "typescript": "^5.7.0"
+  }
+}

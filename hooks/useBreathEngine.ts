@@ -122,8 +122,8 @@ export function useBreathEngine() {
 
   // Iniciar sesión
   // IMPORTANTE: initAudio() DEBE llamarse desde el event handler del botón AudioGate
-  const start = useCallback((pattern: BreathPattern) => {
-    initAudio()
+  const start = useCallback(async (pattern: BreathPattern) => {
+    await initAudio()
     clearTimers()
     isRunningRef.current  = true
     isPausedRef.current   = false

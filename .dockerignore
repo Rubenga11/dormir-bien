@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+out
+infra
+.github
+.env*
+*.md
+supabase/.temp

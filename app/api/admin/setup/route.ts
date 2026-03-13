@@ -1,11 +1,9 @@
 // app/api/admin/setup/route.ts — Auto-migration endpoint
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
 
-function authCheck(req: NextRequest): boolean {
-  const cookie = req.cookies.get('breathe-admin-token')
-  return cookie?.value === process.env.ADMIN_SECRET
-}
+export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
+import { createAdminClient } from '@/lib/supabase/server'
+import { authCheck } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

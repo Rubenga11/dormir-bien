@@ -1,5 +1,7 @@
 // app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+
+export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { createHash } from 'crypto'
 import { insertUser, getUsers, updateUser } from '@/lib/db'
 

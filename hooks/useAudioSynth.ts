@@ -12,22 +12,23 @@ export function useAudioSynth() {
 
   // Inicializar (o reanudar) el AudioContext
   // SIEMPRE llamar desde un event handler — el navegador bloquea fuera de gesto de usuario
-  const initAudio = useCallback(() => {
+  const initAudio = useCallback(async () => {
     if (!ctxRef.current) {
-      ctxRef.current = new (window.AudioContext ||
-        (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-
-      // iOS Silent Mode unlock: reproducir audio silencioso con <audio> element
-      // para forzar al sistema a activar la salida de audio por altavoz
+      // iOS Silent Mode: reproducir <audio> silencioso ANTES de crear AudioContext
+      // Esto fuerza la audio session a "playback" (ignora switch silencio)
+      // DEBE ejecutarse dentro de un gesto de usuario (click/touch)
       try {
         const silentDataUri = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
         const audioEl = document.createElement('audio')
         audioEl.setAttribute('playsinline', '')
         audioEl.src = silentDataUri
-        audioEl.play().catch(() => {/* ignore — best-effort unlock */})
+        await audioEl.play()
       } catch {
         // ignore — best-effort unlock
       }
+
+      ctxRef.current = new (window.AudioContext ||
+        (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
 
       // Auto-resumir si el AudioContext pasa a suspended (e.g. Android background)
       const ctx = ctxRef.current

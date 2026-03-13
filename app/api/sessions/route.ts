@@ -1,5 +1,7 @@
 // app/api/sessions/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+
+export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { insertSession, getMostUsedPattern, updateUser } from '@/lib/db'
 
 export async function POST(req: NextRequest) {

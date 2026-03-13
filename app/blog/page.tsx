@@ -1,16 +1,21 @@
-// app/blog/page.tsx — Listado público de artículos
+'use client'
+// app/blog/page.tsx — Listado público de artículos (client-side for static export)
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getPublishedBlogPosts } from '@/lib/db'
+import { apiUrl } from '@/lib/api'
+import type { BlogPost } from '@/types'
 
-export const dynamic = 'force-dynamic'
+export default function BlogPage() {
+  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [loading, setLoading] = useState(true)
 
-export const metadata = {
-  title: 'Blog — Breathe',
-  description: 'Artículos sobre respiración, sueño y bienestar.',
-}
-
-export default async function BlogPage() {
-  const posts = await getPublishedBlogPosts()
+  useEffect(() => {
+    fetch(apiUrl('/api/blog'))
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setPosts(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <>
@@ -33,7 +38,13 @@ export default async function BlogPage() {
           Respiración · Sueño · Bienestar
         </p>
 
-        {posts.length === 0 && (
+        {loading && (
+          <p className="text-center text-lavender/50 text-[0.72rem] mt-20">
+            Cargando artículos…
+          </p>
+        )}
+
+        {!loading && posts.length === 0 && (
           <p className="text-center text-lavender/50 text-[0.72rem] mt-20">
             Próximamente publicaremos artículos aquí.
           </p>

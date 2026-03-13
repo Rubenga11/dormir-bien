@@ -1,12 +1,10 @@
 // app/api/admin/upload/route.ts — Upload de imágenes via AWS S3
 import { NextRequest, NextResponse } from 'next/server'
+
+export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { randomUUID } from 'crypto'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-
-function authCheck(req: NextRequest): boolean {
-  const cookie = req.cookies.get('breathe-admin-token')
-  return cookie?.value === process.env.ADMIN_SECRET
-}
+import { authCheck } from '@/lib/auth'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
@@ -24,6 +22,13 @@ const s3 = new S3Client({
 
 export async function POST(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  if (!process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
+    return NextResponse.json(
+      { error: 'Subida de imágenes no disponible: credenciales S3 no configuradas' },
+      { status: 500 }
+    )
+  }
 
   try {
     const formData = await req.formData()

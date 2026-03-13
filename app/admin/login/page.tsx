@@ -2,6 +2,7 @@
 // app/admin/login/page.tsx
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiUrl } from '@/lib/api'
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('')
@@ -15,12 +16,14 @@ export default function AdminLogin() {
     setError('')
 
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch(apiUrl('/api/admin/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       })
       if (res.ok) {
+        const data = await res.json()
+        if (data.token) localStorage.setItem('breathe-admin-token', data.token)
         router.push('/admin/dashboard')
       } else {
         setError('Contraseña incorrecta')

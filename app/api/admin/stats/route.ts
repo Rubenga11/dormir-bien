@@ -8,11 +8,7 @@ import {
   getCompletionByMedicacion, getDuracionByEdad, getHorasSuenoByTecnica, getMedicacionByHorasSueno,
   getUsersByCountry, getUsersByCiudad, getSessionsByCountry, getGeoTable,
 } from '@/lib/db'
-
-function authCheck(req: NextRequest): boolean {
-  const cookie = req.cookies.get('breathe-admin-token')
-  return cookie?.value === process.env.ADMIN_SECRET
-}
+import { authCheck } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

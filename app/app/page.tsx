@@ -9,6 +9,7 @@ import { CONTENT } from '@/lib/constants/content'
 import type { BreathPattern } from '@/types'
 import { useBreathEngine } from '@/hooks/useBreathEngine'
 import { useWakeLock } from '@/hooks/useWakeLock'
+import { apiUrl } from '@/lib/api'
 
 // ── LocalStorage keys
 const LS_PROFILE = 'breathe_profile'  // perfil completo del usuario
@@ -88,7 +89,7 @@ export default function AppPage() {
     const profileData: UserProfile = { genero, edad, medicacion, ciudad: ciudad.trim(), cp: cp.trim(), horas_sueno, email: email.trim(), consiente_email }
 
     try {
-      const res = await fetch('/api/users', {
+      const res = await fetch(apiUrl('/api/users'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profileData),
@@ -125,7 +126,7 @@ export default function AppPage() {
 
     if (uid) {
       try {
-        await fetch('/api/users', {
+        await fetch(apiUrl('/api/users'), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: uid, ...profileData }),
@@ -147,13 +148,13 @@ export default function AppPage() {
   }
 
   // ── INICIAR SESIÓN ──
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (!selectedPattern) return
     setScreen('session')
     acquireWakeLock()
 
     const uid = localStorage.getItem(LS_UID)
-    fetch('/api/sessions', {
+    fetch(apiUrl('/api/sessions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -163,7 +164,7 @@ export default function AppPage() {
       }),
     }).catch(() => {})
 
-    start(selectedPattern)
+    await start(selectedPattern)
   }
 
   // ── SALIR DE SESIÓN ──

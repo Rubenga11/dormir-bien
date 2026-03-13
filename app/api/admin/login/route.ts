@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const res = NextResponse.json({ ok: true })
+  const res = NextResponse.json({ ok: true, token: process.env.ADMIN_SECRET })
+  // Cookie for backwards compat (same-origin)
   res.cookies.set('breathe-admin-token', process.env.ADMIN_SECRET!, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
@@ -17,4 +18,8 @@ export async function POST(req: NextRequest) {
     path:     '/',
   })
   return res
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204 })
 }

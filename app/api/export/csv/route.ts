@@ -1,10 +1,10 @@
 // app/api/export/csv/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getUsers, getAllSessions } from '@/lib/db'
+import { authCheck } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
-  const cookie = req.cookies.get('breathe-admin-token')
-  if (cookie?.value !== process.env.ADMIN_SECRET) {
+  if (!authCheck(req)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 

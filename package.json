@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:frontend": "node scripts/build-frontend.mjs",
+    "build:backend": "BUILD_TARGET=backend next build",
     "start": "next start",
     "lint": "next lint"
   },

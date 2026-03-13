@@ -1,11 +1,9 @@
 // app/api/admin/retreats/route.ts — CRUD admin retiros
 import { NextRequest, NextResponse } from 'next/server'
-import { getRetreats, getRetreatById, insertRetreat, updateRetreat, deleteRetreat } from '@/lib/db'
 
-function authCheck(req: NextRequest): boolean {
-  const cookie = req.cookies.get('breathe-admin-token')
-  return cookie?.value === process.env.ADMIN_SECRET
-}
+export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
+import { getRetreats, getRetreatById, insertRetreat, updateRetreat, deleteRetreat } from '@/lib/db'
+import { authCheck } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

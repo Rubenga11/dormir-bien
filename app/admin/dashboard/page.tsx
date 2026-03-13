@@ -3,6 +3,30 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BlogPost, Retreat } from '@/types'
+import { apiUrl } from '@/lib/api'
+
+function getToken(): string | null {
+  return typeof window !== 'undefined' ? localStorage.getItem('breathe-admin-token') : null
+}
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const token = getToken()
+  return { ...(token ? { 'Authorization': `Bearer ${token}` } : {}), ...extra }
+}
+
+function authFetch(path: string, init?: RequestInit): Promise<Response> {
+  const headers = { ...authHeaders(), ...(init?.headers as Record<string, string> || {}) }
+  return fetch(apiUrl(path), { ...init, headers })
+}
+
+function authFetchFormData(path: string, body: FormData): Promise<Response> {
+  const token = getToken()
+  return fetch(apiUrl(path), {
+    method: 'POST',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    body,
+  })
+}
 
 // ── Tipos locales
 type Tab = 'resumen' | 'sesiones' | 'correlaciones' | 'geo' | 'informes' | 'blog' | 'retiros'
@@ -289,6 +313,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [tabLoading, setTabLoading] = useState(false)
   const [toast, setToast]     = useState('')
+  const [authed, setAuthed]   = useState(false)
   const [reportType, setReportType] = useState('completo')
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [blogLoaded, setBlogLoaded] = useState(false)
@@ -299,6 +324,12 @@ export default function AdminDashboard() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const router = useRouter()
 
+  // Client-side auth guard
+  useEffect(() => {
+    if (!getToken()) { router.push('/admin/login'); return }
+    setAuthed(true)
+  }, [router])
+
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   const uploadFile = async (file: File): Promise<string | null> => {
@@ -306,7 +337,7 @@ export default function AdminDashboard() {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+      const res = await authFetchFormData('/api/admin/upload', fd)
       if (!res.ok) { const err = await res.json(); showToast(err.error || 'Error subiendo archivo'); return null }
       const { url } = await res.json()
       return url
@@ -314,8 +345,8 @@ export default function AdminDashboard() {
   }
 
   const fetchSection = useCallback(async (section: string) => {
-    const res = await fetch(`/api/admin/stats?section=${section}`)
-    if (res.status === 401) { router.push('/admin/login'); return null }
+    const res = await authFetch(`/api/admin/stats?section=${section}`)
+    if (res.status === 401) { localStorage.removeItem('breathe-admin-token'); router.push('/admin/login'); return null }
     if (!res.ok) { console.error(`Stats ${section} failed:`, res.status); return null }
     return res.json()
   }, [router])
@@ -346,13 +377,13 @@ export default function AdminDashboard() {
     }
     if (tab === 'blog' && !blogLoaded) {
       setTabLoading(true)
-      fetch('/api/admin/blog').then(r => r.ok ? r.json() : null).then(json => {
+      authFetch('/api/admin/blog').then(r => r.ok ? r.json() : null).then(json => {
         if (json) { setBlogPosts(json); setBlogLoaded(true) }
       }).catch(() => {}).finally(() => setTabLoading(false))
     }
     if (tab === 'retiros' && !retreatsLoaded) {
       setTabLoading(true)
-      fetch('/api/admin/retreats').then(r => r.ok ? r.json() : null).then(json => {
+      authFetch('/api/admin/retreats').then(r => r.ok ? r.json() : null).then(json => {
         if (json) { setRetreats(json); setRetreatsLoaded(true) }
       }).catch(() => {}).finally(() => setTabLoading(false))
     }
@@ -361,7 +392,7 @@ export default function AdminDashboard() {
   // ── Export handlers
   const handleExportCSV = async (includeSessions = false) => {
     const url = includeSessions ? '/api/export/csv?include=sessions' : '/api/export/csv'
-    const res = await fetch(url)
+    const res = await authFetch(url)
     if (!res.ok) { showToast('Error al exportar'); return }
     const blob  = await res.blob()
     const blobUrl = URL.createObjectURL(blob)
@@ -373,7 +404,7 @@ export default function AdminDashboard() {
 
   const handleExportJSON = async (includeSessions = false) => {
     const url = includeSessions ? '/api/export/json?include=sessions' : '/api/export/json'
-    const res = await fetch(url)
+    const res = await authFetch(url)
     if (!res.ok) { showToast('Error al exportar'); return }
     const blob  = await res.blob()
     const blobUrl = URL.createObjectURL(blob)
@@ -384,7 +415,7 @@ export default function AdminDashboard() {
   }
 
   const handleExportReport = async (format: 'csv' | 'json') => {
-    const res = await fetch(`/api/export/report?type=${reportType}&format=${format}`)
+    const res = await authFetch(`/api/export/report?type=${reportType}&format=${format}`)
     if (!res.ok) { showToast('Error al exportar'); return }
     const blob = await res.blob()
     const blobUrl = URL.createObjectURL(blob)
@@ -399,7 +430,7 @@ export default function AdminDashboard() {
 
   // ── Blog handlers
   const refreshBlog = async () => {
-    const res = await fetch('/api/admin/blog')
+    const res = await authFetch('/api/admin/blog')
     if (res.ok) setBlogPosts(await res.json())
   }
 
@@ -412,7 +443,7 @@ export default function AdminDashboard() {
       if (file && file.size > 0) {
         const uploaded = await uploadFile(file)
         if (uploaded) image_url = uploaded
-        else return
+        // Si falla la subida, continúa sin imagen
       }
       const body = {
         title: fd.get('title') as string,
@@ -422,12 +453,12 @@ export default function AdminDashboard() {
         published: fd.get('published') === 'on',
       }
       if (editingPost) {
-        const res = await fetch('/api/admin/blog', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingPost.id, ...body }) })
+        const res = await authFetch('/api/admin/blog', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingPost.id, ...body }) })
         if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo actualizar'}`); return }
         setEditingPost(null)
         showToast('Artículo actualizado')
       } else {
-        const res = await fetch('/api/admin/blog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const res = await authFetch('/api/admin/blog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo crear'}`); return }
         showToast('Artículo creado')
       }
@@ -440,7 +471,7 @@ export default function AdminDashboard() {
 
   const handleBlogDelete = async (id: string) => {
     try {
-      const res = await fetch('/api/admin/blog', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      const res = await authFetch('/api/admin/blog', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
       if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo eliminar'}`); return }
       showToast('Artículo eliminado')
       await refreshBlog()
@@ -451,7 +482,7 @@ export default function AdminDashboard() {
 
   // ── Retreat handlers
   const refreshRetreats = async () => {
-    const res = await fetch('/api/admin/retreats')
+    const res = await authFetch('/api/admin/retreats')
     if (res.ok) setRetreats(await res.json())
   }
 
@@ -464,7 +495,7 @@ export default function AdminDashboard() {
       if (file && file.size > 0) {
         const uploaded = await uploadFile(file)
         if (uploaded) image_url = uploaded
-        else return
+        // Si falla la subida, continúa sin imagen
       }
       const body = {
         title: fd.get('title') as string,
@@ -478,12 +509,12 @@ export default function AdminDashboard() {
         published: fd.get('published') === 'on',
       }
       if (editingRetreat) {
-        const res = await fetch('/api/admin/retreats', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingRetreat.id, ...body }) })
+        const res = await authFetch('/api/admin/retreats', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingRetreat.id, ...body }) })
         if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo actualizar'}`); return }
         setEditingRetreat(null)
         showToast('Retiro actualizado')
       } else {
-        const res = await fetch('/api/admin/retreats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const res = await authFetch('/api/admin/retreats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo crear'}`); return }
         showToast('Retiro creado')
       }
@@ -496,7 +527,7 @@ export default function AdminDashboard() {
 
   const handleRetreatDelete = async (id: string) => {
     try {
-      const res = await fetch('/api/admin/retreats', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      const res = await authFetch('/api/admin/retreats', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
       if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(`Error: ${err.error || 'No se pudo eliminar'}`); return }
       showToast('Retiro eliminado')
       await refreshRetreats()
@@ -504,6 +535,9 @@ export default function AdminDashboard() {
       showToast('Error de conexión al eliminar retiro')
     }
   }
+
+  // ── Auth guard — don't render until token verified
+  if (!authed) return null
 
   // ── Loading state
   if (loading) return (
