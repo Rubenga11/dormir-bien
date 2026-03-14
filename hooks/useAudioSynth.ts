@@ -14,19 +14,20 @@ export function useAudioSynth() {
   // SIEMPRE llamar desde un event handler — el navegador bloquea fuera de gesto de usuario
   const initAudio = useCallback(async () => {
     if (!ctxRef.current) {
-      // iOS Silent Mode: reproducir <audio> silencioso ANTES de crear AudioContext
-      // Esto fuerza la audio session a "playback" (ignora switch silencio)
-      // DEBE ejecutarse dentro de un gesto de usuario (click/touch)
+      // iOS Silent Mode: reproducir <audio> silencioso para forzar audio session a "playback"
+      // IMPORTANTE: fire-and-forget — NO await, para no romper la cadena de user gesture
       try {
         const silentDataUri = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
         const audioEl = document.createElement('audio')
         audioEl.setAttribute('playsinline', '')
         audioEl.src = silentDataUri
-        await audioEl.play()
+        audioEl.play().catch(() => {})
       } catch {
         // ignore — best-effort unlock
       }
 
+      // Crear AudioContext SÍNCRONO dentro del gesto de usuario
+      // Si se crea después de un await, iOS Safari lo deja en "suspended" permanente
       ctxRef.current = new (window.AudioContext ||
         (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
 
@@ -39,7 +40,7 @@ export function useAudioSynth() {
       })
     }
     if (ctxRef.current.state === 'suspended') {
-      ctxRef.current.resume()
+      await ctxRef.current.resume()
     }
     return ctxRef.current
   }, [])

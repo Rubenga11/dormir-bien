@@ -164,7 +164,12 @@ export default function AppPage() {
       }),
     }).catch(() => {})
 
-    await start(selectedPattern)
+    try {
+      await start(selectedPattern)
+    } catch {
+      // Si falla el audio, reintentar sin await para no perder el gesto de usuario
+      start(selectedPattern)
+    }
   }
 
   // ── SALIR DE SESIÓN ──
