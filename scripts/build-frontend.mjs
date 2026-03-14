@@ -1,9 +1,11 @@
 // scripts/build-frontend.mjs — Build static frontend, temporarily hiding API routes
 import { cpSync, rmSync, mkdirSync, existsSync } from 'fs'
 import { execSync } from 'child_process'
-import { resolve } from 'path'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-const root = resolve(import.meta.dirname, '..')
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const root = resolve(__dirname, '..')
 const apiDir = resolve(root, 'app/api')
 const apiTmp = resolve(root, '.api_backup')
 

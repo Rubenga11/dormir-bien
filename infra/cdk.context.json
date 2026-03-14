@@ -1,0 +1,11 @@
+{
+  "hosted-zone:account=704617281771:domainName=breathecalm.es:region=eu-west-1": {
+    "Id": "/hostedzone/Z10434653F6UJAZ2FOQNP",
+    "Name": "breathecalm.es."
+  },
+  "availability-zones:account=704617281771:region=eu-west-1": [
+    "eu-west-1a",
+    "eu-west-1b",
+    "eu-west-1c"
+  ]
+}

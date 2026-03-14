@@ -21,13 +21,8 @@ export class BackendStack extends cdk.Stack {
     super(scope, id, props)
     const { config } = props
 
-    // ECR repository (shared across environments)
-    const repository = ecr.Repository.fromRepositoryName(this, 'Repo', 'breathe-api') ||
-      new ecr.Repository(this, 'EcrRepo', {
-        repositoryName: 'breathe-api',
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
-        lifecycleRules: [{ maxImageCount: 20 }],
-      })
+    // ECR repository (created externally, shared across environments)
+    const repository = ecr.Repository.fromRepositoryName(this, 'Repo', 'breathe-api')
 
     // VPC
     const vpc = new ec2.Vpc(this, 'Vpc', {
@@ -125,6 +120,7 @@ export class BackendStack extends cdk.Stack {
 
     listener.addTargets('EcsTarget', {
       port: 3000,
+      protocol: elbv2.ApplicationProtocol.HTTP,
       targets: [service],
       healthCheck: {
         path: '/api/blog',
@@ -137,7 +133,8 @@ export class BackendStack extends cdk.Stack {
     // HTTP → HTTPS redirect
     alb.addListener('HttpRedirect', {
       port: 80,
-      action: elbv2.ListenerAction.redirect({
+      open: true,
+      defaultAction: elbv2.ListenerAction.redirect({
         protocol: 'HTTPS',
         port: '443',
         permanent: true,
