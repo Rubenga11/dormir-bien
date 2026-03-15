@@ -38,30 +38,45 @@ export class FrontendStack extends cdk.Stack {
       region: 'us-east-1',
     })
 
+    // CloudFront Function — rewrite URLs for Next.js static export
+    // /admin/login → /admin/login/index.html (trailingSlash: true generates /page/index.html)
+    const urlRewriteFn = new cloudfront.Function(this, 'UrlRewrite', {
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+
+  // If URI has a file extension, serve as-is (JS, CSS, images, etc.)
+  if (uri.includes('.')) {
+    return request;
+  }
+
+  // Append trailing slash if missing, then index.html
+  if (!uri.endsWith('/')) {
+    uri += '/';
+  }
+  request.uri = uri + 'index.html';
+
+  return request;
+}
+      `),
+      functionName: `breathe-url-rewrite-${config.envName}`,
+    })
+
     // CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'CDN', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        functionAssociations: [{
+          function: urlRewriteFn,
+          eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+        }],
       },
       domainNames: [config.domain],
       certificate,
       defaultRootObject: 'index.html',
-      errorResponses: [
-        {
-          httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: cdk.Duration.seconds(0),
-        },
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: cdk.Duration.seconds(0),
-        },
-      ],
     })
 
     // Route53 A record → CloudFront

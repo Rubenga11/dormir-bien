@@ -9,19 +9,62 @@ import type { BreathPattern, AudioPhaseParams } from '@/types'
 
 export function useAudioSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Genera un WAV near-silent con muestras PCM reales (~0.5s, mono, 16-bit, 44100Hz)
+  // iOS necesita audio data real (no vacío) para cambiar la audio session a "playback" mode
+  const createNearSilentWav = useCallback((): string => {
+    const sampleRate = 44100
+    const duration = 0.5
+    const numSamples = Math.ceil(sampleRate * duration)
+    const dataSize = numSamples * 2 // 16-bit = 2 bytes per sample
+    const fileSize = 44 + dataSize  // WAV header = 44 bytes
+
+    const buffer = new ArrayBuffer(fileSize)
+    const view = new DataView(buffer)
+
+    // WAV header
+    const writeStr = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+    }
+    writeStr(0, 'RIFF')
+    view.setUint32(4, fileSize - 8, true)
+    writeStr(8, 'WAVE')
+    writeStr(12, 'fmt ')
+    view.setUint32(16, 16, true)       // fmt chunk size
+    view.setUint16(20, 1, true)        // PCM format
+    view.setUint16(22, 1, true)        // mono
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * 2, true) // byte rate
+    view.setUint16(32, 2, true)        // block align
+    view.setUint16(34, 16, true)       // bits per sample
+    writeStr(36, 'data')
+    view.setUint32(40, dataSize, true)
+
+    // PCM samples: value=1 (inaudible but non-zero — triggers iOS playback session)
+    for (let i = 0; i < numSamples; i++) {
+      view.setInt16(44 + i * 2, 1, true)
+    }
+
+    const blob = new Blob([buffer], { type: 'audio/wav' })
+    return URL.createObjectURL(blob)
+  }, [])
 
   // Inicializar (o reanudar) el AudioContext
   // SIEMPRE llamar desde un event handler — el navegador bloquea fuera de gesto de usuario
   const initAudio = useCallback(async () => {
     if (!ctxRef.current) {
-      // iOS Silent Mode: reproducir <audio> silencioso para forzar audio session a "playback"
+      // iOS Silent Mode: reproducir <audio> near-silent en loop para forzar audio session a "playback"
+      // El elemento se mantiene vivo y en loop — iOS mantiene la sesión mientras haya <audio> activo
       // IMPORTANTE: fire-and-forget — NO await, para no romper la cadena de user gesture
       try {
-        const silentDataUri = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+        const wavUrl = createNearSilentWav()
         const audioEl = document.createElement('audio')
         audioEl.setAttribute('playsinline', '')
-        audioEl.src = silentDataUri
+        audioEl.src = wavUrl
+        audioEl.loop = true
         audioEl.play().catch(() => {})
+        silentAudioRef.current = audioEl
       } catch {
         // ignore — best-effort unlock
       }
@@ -43,7 +86,7 @@ export function useAudioSynth() {
       await ctxRef.current.resume()
     }
     return ctxRef.current
-  }, [])
+  }, [createNearSilentWav])
 
   // Generador de ruido rosa — aproximación algoritmo Voss-McCartney
   // El ruido rosa (espectro 1/f) es el más parecido al sonido de respiración humana
@@ -143,6 +186,12 @@ export function useAudioSynth() {
   const playHold = useCallback(() => {}, [])
 
   const cleanup = useCallback(() => {
+    // Stop the silent audio loop that keeps iOS in "playback" session
+    if (silentAudioRef.current) {
+      silentAudioRef.current.pause()
+      silentAudioRef.current.removeAttribute('src')
+      silentAudioRef.current = null
+    }
     ctxRef.current?.close()
     ctxRef.current = null
   }, [])

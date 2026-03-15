@@ -17,7 +17,7 @@ const INITIAL_STATE: BreathEngineState = {
 
 export function useBreathEngine() {
   const [state, setState] = useState<BreathEngineState>(INITIAL_STATE)
-  const { initAudio, playInhale, playExhale, playHold } = useAudioSynth()
+  const { initAudio, playInhale, playExhale, playHold, cleanup } = useAudioSynth()
 
   // Refs — no causan re-renders y sobreviven entre renders
   const mainTimerRef   = useRef<ReturnType<typeof setTimeout>  | null>(null)
@@ -116,9 +116,10 @@ export function useBreathEngine() {
       mainTimerRef.current  = null
       countdownRef.current  = null
       maxTimerRef.current   = null
+      cleanup()
       setState(INITIAL_STATE)
     }, remainingMs)
-  }, [])
+  }, [cleanup])
 
   // Iniciar sesión
   // IMPORTANTE: initAudio() DEBE llamarse desde el event handler del botón AudioGate
@@ -168,11 +169,12 @@ export function useBreathEngine() {
     isPausedRef.current   = false
     currentPatRef.current = null
     clearTimers()
+    cleanup()
     setState(INITIAL_STATE)
-  }, [clearTimers])
+  }, [clearTimers, cleanup])
 
   // Cleanup al desmontar
-  useEffect(() => () => { isRunningRef.current = false; clearTimers() }, [clearTimers])
+  useEffect(() => () => { isRunningRef.current = false; clearTimers(); cleanup() }, [clearTimers, cleanup])
 
   // Derivados útiles para el componente
   const phaseLabel: Record<BreathPhase, string> = {

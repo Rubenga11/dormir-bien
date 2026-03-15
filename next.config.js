@@ -10,6 +10,10 @@ const nextConfig = {
   // frontend → static export for S3+CloudFront
   // backend → standalone for Docker/ECS
   // undefined → default Next.js output (Amplify)
+  // trailingSlash generates /page/index.html instead of /page.html
+  // Required for S3+CloudFront static hosting with CloudFront Function URL rewriting
+  trailingSlash: true,
+
   ...(buildTarget === 'frontend' ? {
     output: 'export',
     images: { unoptimized: true },
