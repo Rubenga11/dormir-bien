@@ -20,7 +20,7 @@ export async function insertUser(data: {
 }): Promise<{ id: string }> {
   const row_data: Record<string, unknown> = {
     genero: data.genero, edad: data.edad, medicacion: data.medicacion,
-    ciudad: data.ciudad, cp: data.cp, horas_sueno: data.horas_sueno,
+    localidad: data.ciudad, cp: data.cp, horas_sueno: data.horas_sueno,
     tecnica_favorita: data.tecnica_favorita || null,
     ip_hash: data.ip_hash || null, user_agent: data.user_agent || null,
     country: data.country || null,
@@ -64,11 +64,15 @@ export async function updateUser(id: string, updates: Record<string, unknown>): 
 export async function insertSession(data: {
   user_id?: string | null; patron: string; duracion_segundos?: number | null; completada?: boolean
 }): Promise<void> {
-  await sb().from('sessions').insert({
+  const { error } = await sb().from('sessions').insert({
     user_id: data.user_id || null, patron: data.patron,
     duracion_segundos: data.duracion_segundos || null, completada: data.completada || false,
   })
-  // increment global counter
+  if (error) {
+    console.error('insertSession error:', error.message)
+    throw error
+  }
+  // increment global counter only if insert succeeded
   await sb().rpc('increment_sessions')
 }
 
@@ -90,7 +94,8 @@ export async function getMostUsedPattern(userId: string): Promise<NombrePatron |
 }
 
 export async function getAllSessions() {
-  const { data } = await sb().from('sessions').select('*').order('created_at', { ascending: false })
+  const { data, error } = await sb().from('sessions').select('*').order('created_at', { ascending: false })
+  if (error) console.error('getAllSessions error:', error.message)
   return data || []
 }
 
@@ -113,7 +118,7 @@ export async function getDashboardSummary() {
   return {
     total_usuarios: users.length,
     total_sesiones: stats?.total_sessions || sess.length,
-    total_ciudades: new Set(users.map((u: any) => u.ciudad?.toLowerCase().trim())).size,
+    total_ciudades: new Set(users.map((u: any) => (u.localidad || u.ciudad)?.toLowerCase().trim())).size,
     pct_medicacion: users.length > 0
       ? Math.round(users.filter((u: any) => u.medicacion === 'Sí, habitualmente').length * 1000 / users.length) / 10 : 0,
     nuevos_7dias: users.filter((u: any) => new Date(u.created_at).getTime() > sevenDaysAgo).length,
@@ -358,7 +363,7 @@ export async function getUsersByCountry() {
 export async function getUsersByCiudad() {
   const users = await getUsers()
   const counts: Record<string, number> = {}
-  for (const u of users) counts[u.ciudad] = (counts[u.ciudad] || 0) + 1
+  for (const u of users) { const c = u.localidad || u.ciudad; counts[c] = (counts[c] || 0) + 1 }
   return Object.entries(counts).map(([ciudad, count]) => ({ ciudad, count })).sort((a, b) => b.count - a.count)
 }
 
@@ -378,14 +383,16 @@ export async function getGeoTable() {
   const { users, sessions, userMap } = await getUserSessionJoin()
   const cityData: Record<string, { country: string; users: Set<string>; sessions: number; tecnicas: Record<string, number> }> = {}
   for (const u of users) {
-    if (!cityData[u.ciudad]) cityData[u.ciudad] = { country: u.country || 'ES', users: new Set(), sessions: 0, tecnicas: {} }
-    cityData[u.ciudad].users.add(u.id)
+    const c = u.localidad || u.ciudad
+    if (!cityData[c]) cityData[c] = { country: u.country || 'ES', users: new Set(), sessions: 0, tecnicas: {} }
+    cityData[c].users.add(u.id)
   }
   for (const s of sessions) {
     const user = userMap.get(s.user_id)
-    if (!user || !cityData[user.ciudad]) continue
-    cityData[user.ciudad].sessions++
-    cityData[user.ciudad].tecnicas[s.patron] = (cityData[user.ciudad].tecnicas[s.patron] || 0) + 1
+    const c = user?.localidad || user?.ciudad
+    if (!user || !c || !cityData[c]) continue
+    cityData[c].sessions++
+    cityData[c].tecnicas[s.patron] = (cityData[c].tecnicas[s.patron] || 0) + 1
   }
   return Object.entries(cityData).map(([ciudad, d]) => {
     const top = Object.entries(d.tecnicas).sort((a, b) => b[1] - a[1])[0]

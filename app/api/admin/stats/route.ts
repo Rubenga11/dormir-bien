@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
         genero: u.genero,
         edad: u.edad,
         medicacion: u.medicacion,
-        ciudad: u.ciudad,
+        ciudad: u.localidad || u.ciudad,
         cp: u.cp,
         horas_sueno: u.horas_sueno,
         tecnica_favorita: u.tecnica_favorita,

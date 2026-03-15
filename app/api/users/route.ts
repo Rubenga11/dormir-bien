@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest) {
     if (genero) updates.genero = genero
     if (edad) updates.edad = edad
     if (medicacion) updates.medicacion = medicacion
-    if (ciudad?.trim()) updates.ciudad = ciudad.trim()
+    if (ciudad?.trim()) updates.localidad = ciudad.trim()
     if (cp?.trim()) updates.cp = cp.trim()
     if (horas_sueno) updates.horas_sueno = horas_sueno
     if (email !== undefined) updates.email = email.trim()
