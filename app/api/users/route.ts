@@ -42,8 +42,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ id: result.id }, { status: 201 })
   } catch (err) {
-    console.error('[POST /api/users] unexpected:', err)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : JSON.stringify(err)
+    console.error('[POST /api/users] unexpected:', msg, err)
+    return NextResponse.json({ error: 'Error interno', detail: msg }, { status: 500 })
   }
 }
 

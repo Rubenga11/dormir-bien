@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 201 })
   } catch (err) {
-    console.error('[POST /api/sessions] unexpected:', err)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : JSON.stringify(err)
+    console.error('[POST /api/sessions] unexpected:', msg, err)
+    return NextResponse.json({ error: 'Error interno', detail: msg }, { status: 500 })
   }
 }
