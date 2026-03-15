@@ -1,0 +1,21 @@
+{
+  "version": "52.0.0",
+  "files": {
+    "77054f8d4a4848d3c4d8ff221b503affccbfb579ef7f8d8a7e0542d86b6e0cc1": {
+      "displayName": "Breathe-DEV-Backend Template",
+      "source": {
+        "path": "Breathe-DEV-Backend.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "704617281771-eu-west-1-22836f83": {
+          "bucketName": "cdk-hnb659fds-assets-704617281771-eu-west-1",
+          "objectKey": "77054f8d4a4848d3c4d8ff221b503affccbfb579ef7f8d8a7e0542d86b6e0cc1.json",
+          "region": "eu-west-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::704617281771:role/cdk-hnb659fds-file-publishing-role-704617281771-eu-west-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

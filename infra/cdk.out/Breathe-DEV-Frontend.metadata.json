@@ -1,0 +1,146 @@
+{
+  "/Breathe-DEV-Frontend/Custom::S3AutoDeleteObjectsCustomResourceProvider": [
+    {
+      "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+      "data": true
+    }
+  ],
+  "/Breathe-DEV-Frontend/AWSCloudFrontPartitionHostedZoneIdMap": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AWSCloudFrontPartitionHostedZoneIdMap"
+    }
+  ],
+  "/Breathe-DEV-Frontend/BucketName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BucketName"
+    }
+  ],
+  "/Breathe-DEV-Frontend/DistributionId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DistributionId"
+    }
+  ],
+  "/Breathe-DEV-Frontend/DomainName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DomainName"
+    }
+  ],
+  "/Breathe-DEV-Frontend/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/Breathe-DEV-Frontend/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/Breathe-DEV-Frontend/FrontendBucket/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FrontendBucketEFE2E19C"
+    },
+    {
+      "type": "aws:cdk:analytics:mixin",
+      "data": {
+        "mixin": "aws-cdk-lib.aws_s3.mixins.BucketAutoDeleteObjects"
+      }
+    }
+  ],
+  "/Breathe-DEV-Frontend/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+    }
+  ],
+  "/Breathe-DEV-Frontend/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F"
+    }
+  ],
+  "/Breathe-DEV-Frontend/Cert/CertificateRequestorFunction": [
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    }
+  ],
+  "/Breathe-DEV-Frontend/UrlRewrite/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "UrlRewriteE50C993D"
+    }
+  ],
+  "/Breathe-DEV-Frontend/CDN/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDN2330F4C0"
+    }
+  ],
+  "/Breathe-DEV-Frontend/AliasRecord/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AliasRecord851000D2"
+    }
+  ],
+  "/Breathe-DEV-Frontend/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/Breathe-DEV-Frontend/FrontendBucket/Policy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FrontendBucketPolicy1DFF75D9"
+    },
+    {
+      "type": "aws:cdk:analytics:mixin",
+      "data": {
+        "mixin": "aws-cdk-lib.aws_s3.mixins.BucketPolicyStatements"
+      }
+    }
+  ],
+  "/Breathe-DEV-Frontend/FrontendBucket/AutoDeleteObjectsCustomResource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FrontendBucketAutoDeleteObjectsCustomResourceDB860B32"
+    }
+  ],
+  "/Breathe-DEV-Frontend/Cert/CertificateRequestorFunction/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorFunction98FDF273"
+    }
+  ],
+  "/Breathe-DEV-Frontend/Cert/CertificateRequestorResource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorResource9D0836FD"
+    }
+  ],
+  "/Breathe-DEV-Frontend/Cert/CertificateRequestorFunction/ServiceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorFunctionServiceRoleF65859C0"
+    }
+  ],
+  "/Breathe-DEV-Frontend/CDN/Origin1/S3OriginAccessControl/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDNOrigin1S3OriginAccessControl79AEF565"
+    }
+  ],
+  "/Breathe-DEV-Frontend/Cert/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorFunctionServiceRoleDefaultPolicy4F1E63AC"
+    }
+  ]
+}

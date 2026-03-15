@@ -7,6 +7,13 @@ import { NextRequest } from 'next/server'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function parseJsonBody(req: NextRequest): Promise<any> {
   const buf = await req.arrayBuffer()
-  const text = new TextDecoder('utf-8').decode(buf)
+  const bytes = new Uint8Array(buf)
+  const text = new TextDecoder('utf-8').decode(bytes)
+  // Log hex of first non-ASCII bytes for debugging
+  const nonAscii = Array.from(bytes).filter(b => b > 127)
+  if (nonAscii.length > 0) {
+    console.log('[parseJsonBody] non-ASCII bytes:', nonAscii.map(b => b.toString(16)).join(','))
+    console.log('[parseJsonBody] decoded text sample:', text.slice(0, 200))
+  }
   return JSON.parse(text)
 }

@@ -1,0 +1,110 @@
+{
+  "/Breathe-PRD-Frontend/AWSCloudFrontPartitionHostedZoneIdMap": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AWSCloudFrontPartitionHostedZoneIdMap"
+    }
+  ],
+  "/Breathe-PRD-Frontend/BucketName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BucketName"
+    }
+  ],
+  "/Breathe-PRD-Frontend/DistributionId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DistributionId"
+    }
+  ],
+  "/Breathe-PRD-Frontend/DomainName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DomainName"
+    }
+  ],
+  "/Breathe-PRD-Frontend/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/Breathe-PRD-Frontend/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/Breathe-PRD-Frontend/FrontendBucket/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FrontendBucketEFE2E19C"
+    }
+  ],
+  "/Breathe-PRD-Frontend/Cert/CertificateRequestorFunction": [
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    }
+  ],
+  "/Breathe-PRD-Frontend/UrlRewrite/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "UrlRewriteE50C993D"
+    }
+  ],
+  "/Breathe-PRD-Frontend/CDN/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDN2330F4C0"
+    }
+  ],
+  "/Breathe-PRD-Frontend/AliasRecord/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AliasRecord851000D2"
+    }
+  ],
+  "/Breathe-PRD-Frontend/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/Breathe-PRD-Frontend/FrontendBucket/Policy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FrontendBucketPolicy1DFF75D9"
+    }
+  ],
+  "/Breathe-PRD-Frontend/Cert/CertificateRequestorFunction/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorFunction98FDF273"
+    }
+  ],
+  "/Breathe-PRD-Frontend/Cert/CertificateRequestorResource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorResource9D0836FD"
+    }
+  ],
+  "/Breathe-PRD-Frontend/Cert/CertificateRequestorFunction/ServiceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorFunctionServiceRoleF65859C0"
+    }
+  ],
+  "/Breathe-PRD-Frontend/CDN/Origin1/S3OriginAccessControl/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDNOrigin1S3OriginAccessControl79AEF565"
+    }
+  ],
+  "/Breathe-PRD-Frontend/Cert/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CertCertificateRequestorFunctionServiceRoleDefaultPolicy4F1E63AC"
+    }
+  ]
+}

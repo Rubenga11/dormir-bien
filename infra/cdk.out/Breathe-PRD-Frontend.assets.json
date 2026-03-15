@@ -1,0 +1,36 @@
+{
+  "version": "52.0.0",
+  "files": {
+    "b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8": {
+      "displayName": "Cert/CertificateRequestorFunction/Code",
+      "source": {
+        "path": "asset.b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "704617281771-eu-west-1-c3098e42": {
+          "bucketName": "cdk-hnb659fds-assets-704617281771-eu-west-1",
+          "objectKey": "b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8.zip",
+          "region": "eu-west-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::704617281771:role/cdk-hnb659fds-file-publishing-role-704617281771-eu-west-1"
+        }
+      }
+    },
+    "f5307742e4fa07cc1db0d867e3a1b45787f43d1e91bd8ad19097498edc7f4c0e": {
+      "displayName": "Breathe-PRD-Frontend Template",
+      "source": {
+        "path": "Breathe-PRD-Frontend.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "704617281771-eu-west-1-18bc39f4": {
+          "bucketName": "cdk-hnb659fds-assets-704617281771-eu-west-1",
+          "objectKey": "f5307742e4fa07cc1db0d867e3a1b45787f43d1e91bd8ad19097498edc7f4c0e.json",
+          "region": "eu-west-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::704617281771:role/cdk-hnb659fds-file-publishing-role-704617281771-eu-west-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

@@ -1,0 +1,320 @@
+{
+  "/Breathe-PRD-Backend/Service": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+      "trace": [
+        "Annotations.addMessage (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\node_modules\\aws-cdk-lib\\core\\lib\\annotations.js:1:2066)",
+        "Annotations.addWarningV2 (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\node_modules\\aws-cdk-lib\\core\\lib\\annotations.js:1:984)",
+        "new BaseService2 (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\node_modules\\aws-cdk-lib\\aws-ecs\\lib\\base\\base-service.js:1:12364)",
+        "new FargateService2 (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\node_modules\\aws-cdk-lib\\aws-ecs\\lib\\fargate\\fargate-service.js:1:6371)",
+        "new FargateService2 (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\node_modules\\aws-cdk-lib\\core\\lib\\prop-injectable.js:1:681)",
+        "new BackendStack (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\lib\\backend-stack.ts:104:21)",
+        "Object.<anonymous> (C:\\Users\\ruben\\workspace\\dormir_bien\\infra\\bin\\app.ts:21:1)",
+        "Module._compile (node:internal/modules/cjs/loader:1761:14)",
+        "Module.m._compile (C:\\Users\\ruben\\AppData\\Local\\npm-cache\\_npx\\1bf7c3c15bf47d04\\node_modules\\ts-node\\src\\index.ts:1618:23)",
+        "node:internal/modules/cjs/loader:1893:10",
+        "Object.require.extensions.<computed> [as .ts] (C:\\Users\\ruben\\AppData\\Local\\npm-cache\\_npx\\1bf7c3c15bf47d04\\node_modules\\ts-node\\src\\index.ts:1621:12)",
+        "Module.load (node:internal/modules/cjs/loader:1481:32)",
+        "Module._load (node:internal/modules/cjs/loader:1300:12)",
+        "TracingChannel.traceSync (node:diagnostics_channel:328:14)",
+        "wrapModuleLoad (node:internal/modules/cjs/loader:245:24)",
+        "Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)",
+        "phase4 (C:\\Users\\ruben\\AppData\\Local\\npm-cache\\_npx\\1bf7c3c15bf47d04\\node_modules\\ts-node\\src\\bin.ts:649:14)",
+        "bootstrap (C:\\Users\\ruben\\AppData\\Local\\npm-cache\\_npx\\1bf7c3c15bf47d04\\node_modules\\ts-node\\src\\bin.ts:95:10)",
+        "main (C:\\Users\\ruben\\AppData\\Local\\npm-cache\\_npx\\1bf7c3c15bf47d04\\node_modules\\ts-node\\src\\bin.ts:55:10)",
+        "Object.<anonymous> (C:\\Users\\ruben\\AppData\\Local\\npm-cache\\_npx\\1bf7c3c15bf47d04\\node_modules\\ts-node\\src\\bin.ts:800:3)",
+        "Module._compile (node:internal/modules/cjs/loader:1761:14)",
+        "Object.<anonymous> (node:internal/modules/cjs/loader:1893:10)",
+        "Module.load (node:internal/modules/cjs/loader:1481:32)",
+        "Module._load (node:internal/modules/cjs/loader:1300:12)",
+        "TracingChannel.traceSync (node:diagnostics_channel:328:14)",
+        "wrapModuleLoad (node:internal/modules/cjs/loader:245:24)",
+        "Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)",
+        "node:internal/main/run_main_module:33:47"
+      ]
+    }
+  ],
+  "/Breathe-PRD-Backend/ALBDnsName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBDnsName"
+    }
+  ],
+  "/Breathe-PRD-Backend/ApiDomain": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ApiDomain"
+    }
+  ],
+  "/Breathe-PRD-Backend/ClusterName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClusterName"
+    }
+  ],
+  "/Breathe-PRD-Backend/ServiceName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ServiceName"
+    }
+  ],
+  "/Breathe-PRD-Backend/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/Breathe-PRD-Backend/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Vpc8378EB38"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/IGW": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcIGWD7BA715C"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/VPCGW": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcVPCGWBF912B6E"
+    }
+  ],
+  "/Breathe-PRD-Backend/Cluster/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClusterEB0386A7"
+    }
+  ],
+  "/Breathe-PRD-Backend/ApiCert/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ApiCert744F7693"
+    }
+  ],
+  "/Breathe-PRD-Backend/TaskDef/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TaskDef54694570"
+    }
+  ],
+  "/Breathe-PRD-Backend/ALB/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBAEE750D2"
+    }
+  ],
+  "/Breathe-PRD-Backend/Service/Service": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ServiceD69D759B"
+    }
+  ],
+  "/Breathe-PRD-Backend/ApiAliasRecord/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ApiAliasRecordBCE933A3"
+    }
+  ],
+  "/Breathe-PRD-Backend/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet1/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1Subnet2BB74ED7"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet1/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1RouteTable15C15F8E"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet1/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1RouteTableAssociation4E83B6E4"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet1/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1DefaultRouteB88F9E93"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet1/EIP": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1EIP411541E6"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet1/NATGateway": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1NATGatewayA036E8A6"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet2/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet2SubnetE34B022A"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet2/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet2RouteTableC5A6DF77"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet2/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet2RouteTableAssociationCCE257FF"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/publicSubnet2/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet2DefaultRoute732F0BEB"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet1/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet1SubnetCEAD3716"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet1/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet1RouteTable1979EACB"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet1/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet1RouteTableAssociationEEBD93CE"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet1/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet1DefaultRouteB506891A"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet2/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet2Subnet2DE7549C"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet2/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet2RouteTable4D0FFC8C"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet2/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet2RouteTableAssociationB691E645"
+    }
+  ],
+  "/Breathe-PRD-Backend/Vpc/privateSubnet2/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcprivateSubnet2DefaultRouteBAC3C1C3"
+    }
+  ],
+  "/Breathe-PRD-Backend/TaskDef/TaskRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TaskDefTaskRole1EDB4A67"
+    }
+  ],
+  "/Breathe-PRD-Backend/TaskDef/ExecutionRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TaskDefExecutionRoleB4775C97"
+    }
+  ],
+  "/Breathe-PRD-Backend/ALB/SecurityGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBSecurityGroup8B8624F8"
+    }
+  ],
+  "/Breathe-PRD-Backend/ALB/SecurityGroup/to BreathePRDBackendServiceSecurityGroupA16F324E:3000": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBSecurityGrouptoBreathePRDBackendServiceSecurityGroupA16F324E3000CED1EAE7"
+    }
+  ],
+  "/Breathe-PRD-Backend/ALB/HttpsListener/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBHttpsListenerF678A746"
+    }
+  ],
+  "/Breathe-PRD-Backend/ALB/HttpRedirect/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBHttpRedirect2FAF0637"
+    }
+  ],
+  "/Breathe-PRD-Backend/Service/SecurityGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ServiceSecurityGroupC96ED6A7"
+    }
+  ],
+  "/Breathe-PRD-Backend/Service/SecurityGroup/from BreathePRDBackendALBSecurityGroup7E78A341:3000": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ServiceSecurityGroupfromBreathePRDBackendALBSecurityGroup7E78A341300050A9EF8B"
+    }
+  ],
+  "/Breathe-PRD-Backend/TaskDef/api/LogGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TaskDefapiLogGroupB1FF599A"
+    }
+  ],
+  "/Breathe-PRD-Backend/TaskDef/ExecutionRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TaskDefExecutionRoleDefaultPolicy0DBB737A"
+    }
+  ],
+  "/Breathe-PRD-Backend/ALB/HttpsListener/EcsTargetGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ALBHttpsListenerEcsTargetGroupC63D6DA5"
+    }
+  ],
+  "/Breathe-PRD-Backend/Service/TaskCount/Target/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ServiceTaskCountTarget23E25614"
+    }
+  ],
+  "/Breathe-PRD-Backend/Service/TaskCount/Target/CpuScaling/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ServiceTaskCountTargetCpuScalingCC8A5DF6"
+    }
+  ]
+}

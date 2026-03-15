@@ -1,0 +1,21 @@
+{
+  "version": "52.0.0",
+  "files": {
+    "b1d8f1db2e2d1cd1c9bf5778c0b0f513ee9c393ac0c5bf58c5dcc39b975219b0": {
+      "displayName": "Breathe-PRD-Backend Template",
+      "source": {
+        "path": "Breathe-PRD-Backend.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "704617281771-eu-west-1-a63ba6e4": {
+          "bucketName": "cdk-hnb659fds-assets-704617281771-eu-west-1",
+          "objectKey": "b1d8f1db2e2d1cd1c9bf5778c0b0f513ee9c393ac0c5bf58c5dcc39b975219b0.json",
+          "region": "eu-west-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::704617281771:role/cdk-hnb659fds-file-publishing-role-704617281771-eu-west-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
