@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { insertSession, getMostUsedPattern, updateUser } from '@/lib/db'
+import { parseJsonBody } from '@/lib/parse-body'
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, patron, duracionSegundos, completada } = await req.json()
+    const { userId, patron, duracionSegundos, completada } = await parseJsonBody(req)
 
     if (!patron) return NextResponse.json({ error: 'patron requerido' }, { status: 400 })
 
@@ -27,8 +28,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 201 })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : JSON.stringify(err)
-    console.error('[POST /api/sessions] unexpected:', msg, err)
-    return NextResponse.json({ error: 'Error interno', detail: msg }, { status: 500 })
+    console.error('[POST /api/sessions] unexpected:', err)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }

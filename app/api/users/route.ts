@@ -4,10 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { createHash } from 'crypto'
 import { insertUser, getUsers, updateUser } from '@/lib/db'
+import { parseJsonBody } from '@/lib/parse-body'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body = await parseJsonBody(req)
     const { genero, edad, medicacion, ciudad, cp, horas_sueno, email, consiente_email, tecnica_favorita } = body
 
     if (!genero || !edad || !medicacion || !ciudad?.trim() || !cp?.trim() || !horas_sueno) {
@@ -42,9 +43,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ id: result.id }, { status: 201 })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : JSON.stringify(err)
-    console.error('[POST /api/users] unexpected:', msg, err)
-    return NextResponse.json({ error: 'Error interno', detail: msg }, { status: 500 })
+    console.error('[POST /api/users] unexpected:', err)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
 
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body = await parseJsonBody(req)
     const { userId, genero, edad, medicacion, ciudad, cp, horas_sueno, email, consiente_email } = body
 
     if (!userId) {

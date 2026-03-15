@@ -1,8 +1,9 @@
 // app/api/admin/login/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+import { parseJsonBody } from '@/lib/parse-body'
 
 export async function POST(req: NextRequest) {
-  const { password } = await req.json()
+  const { password } = await parseJsonBody(req)
 
   if (!password || password !== process.env.ADMIN_SECRET) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

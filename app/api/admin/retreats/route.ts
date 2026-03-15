@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { getRetreats, getRetreatById, insertRetreat, updateRetreat, deleteRetreat } from '@/lib/db'
 import { authCheck } from '@/lib/auth'
+import { parseJsonBody } from '@/lib/parse-body'
 
 export async function GET(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
-    const body = await req.json()
+    const body = await parseJsonBody(req)
     const retreat = await insertRetreat({
       title: body.title || '',
       image_url: body.image_url || '',
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
-    const body = await req.json()
+    const body = await parseJsonBody(req)
     if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
     if (body.price !== undefined) body.price = Number(body.price)
     const ok = await updateRetreat(body.id, body)
@@ -50,7 +51,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
-    const { id } = await req.json()
+    const { id } = await parseJsonBody(req)
     if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
     const ok = await deleteRetreat(id)
     if (!ok) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
