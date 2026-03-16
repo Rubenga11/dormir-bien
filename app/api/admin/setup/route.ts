@@ -19,7 +19,38 @@ export async function POST(req: NextRequest) {
     results.push('email columns: already exist')
   }
 
-  // 2. Ensure storage bucket — use direct REST API
+  // 2. Migrate retreats: fecha → fecha_inicio + fecha_fin
+  const { error: colCheck2 } = await sb.from('retreats').select('fecha_inicio').limit(0)
+  if (colCheck2 && colCheck2.message.includes('fecha_inicio')) {
+    // Column doesn't exist yet — run migration via REST SQL
+    const supabaseUrl2 = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey2 = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    try {
+      const sql = `
+        ALTER TABLE retreats RENAME COLUMN fecha TO fecha_inicio;
+        ALTER TABLE retreats ADD COLUMN IF NOT EXISTS fecha_fin DATE;
+        UPDATE retreats SET fecha_fin = fecha_inicio WHERE fecha_fin IS NULL;
+      `
+      const migRes = await fetch(`${supabaseUrl2}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: { 'apikey': serviceKey2, 'Authorization': `Bearer ${serviceKey2}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: sql }),
+      })
+      if (migRes.ok) {
+        results.push('retreats migration: fecha → fecha_inicio/fecha_fin applied')
+      } else {
+        // RPC may not exist, try raw SQL via pg_net or just note it
+        results.push('retreats migration: RPC not available — run SQL manually: ALTER TABLE retreats RENAME COLUMN fecha TO fecha_inicio; ALTER TABLE retreats ADD COLUMN fecha_fin DATE; UPDATE retreats SET fecha_fin = fecha_inicio WHERE fecha_fin IS NULL;')
+      }
+    } catch (err2: unknown) {
+      const msg2 = err2 instanceof Error ? err2.message : String(err2)
+      results.push(`retreats migration error: ${msg2}`)
+    }
+  } else {
+    results.push('retreats fecha_inicio column: already exists')
+  }
+
+  // 3. Ensure storage bucket — use direct REST API
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 

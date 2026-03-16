@@ -17,16 +17,20 @@ export async function POST(req: NextRequest) {
     const body = await parseJsonBody(req)
 
     if (!body.title?.trim()) return NextResponse.json({ error: 'Título requerido' }, { status: 400 })
-    if (!body.fecha) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
+    if (!body.fecha_inicio) return NextResponse.json({ error: 'Fecha inicio requerida' }, { status: 400 })
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!dateRegex.test(body.fecha)) return NextResponse.json({ error: 'Formato de fecha inválido (YYYY-MM-DD)' }, { status: 400 })
+    if (!dateRegex.test(body.fecha_inicio)) return NextResponse.json({ error: 'Formato de fecha inicio inválido (YYYY-MM-DD)' }, { status: 400 })
+    const fecha_fin = body.fecha_fin || body.fecha_inicio
+    if (!dateRegex.test(fecha_fin)) return NextResponse.json({ error: 'Formato de fecha fin inválido (YYYY-MM-DD)' }, { status: 400 })
+    if (fecha_fin < body.fecha_inicio) return NextResponse.json({ error: 'Fecha fin no puede ser anterior a fecha inicio' }, { status: 400 })
 
     const retreat = await insertRetreat({
       title: body.title.trim(),
       image_url: body.image_url || '',
       description: body.description || '',
-      fecha: body.fecha,
+      fecha_inicio: body.fecha_inicio,
+      fecha_fin,
       price: Number(body.price) || 0,
       plazas: Number(body.plazas) || 0,
       published: body.published ?? false,
@@ -46,7 +50,9 @@ export async function PATCH(req: NextRequest) {
     if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (body.fecha && !dateRegex.test(body.fecha)) return NextResponse.json({ error: 'Formato de fecha inválido' }, { status: 400 })
+    if (body.fecha_inicio && !dateRegex.test(body.fecha_inicio)) return NextResponse.json({ error: 'Formato de fecha inicio inválido' }, { status: 400 })
+    if (body.fecha_fin && !dateRegex.test(body.fecha_fin)) return NextResponse.json({ error: 'Formato de fecha fin inválido' }, { status: 400 })
+    if (body.fecha_inicio && body.fecha_fin && body.fecha_fin < body.fecha_inicio) return NextResponse.json({ error: 'Fecha fin no puede ser anterior a fecha inicio' }, { status: 400 })
     if (body.price !== undefined) body.price = Number(body.price)
     if (body.plazas !== undefined) body.plazas = Number(body.plazas)
 

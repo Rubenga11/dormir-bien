@@ -504,11 +504,13 @@ export default function AdminDashboard() {
         if (uploaded) image_url = uploaded
         // Si falla la subida, continúa sin imagen
       }
+      const fecha_inicio = fd.get('fecha_inicio') as string
       const body = {
         title: fd.get('title') as string,
         image_url,
         description: fd.get('description') as string,
-        fecha: fd.get('fecha') as string,
+        fecha_inicio,
+        fecha_fin: (fd.get('fecha_fin') as string) || fecha_inicio,
         price: Number(fd.get('price')) || 0,
         plazas: Number(fd.get('plazas')) || 0,
         published: fd.get('published') === 'on',
@@ -1196,10 +1198,14 @@ export default function AdminDashboard() {
                   <input name="image_url" className="form-input" placeholder="...o URL de imagen" defaultValue={editingRetreat?.image_url || ''} />
                 </div>
                 <textarea name="description" className="form-textarea" placeholder="Descripción del retiro" defaultValue={editingRetreat?.description || ''} />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Fecha</label>
-                    <input name="fecha" type="date" className="form-input" defaultValue={editingRetreat?.fecha?.slice(0,10) || ''} required />
+                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Fecha inicio</label>
+                    <input name="fecha_inicio" type="date" className="form-input" defaultValue={editingRetreat?.fecha_inicio?.slice(0,10) || ''} required />
+                  </div>
+                  <div>
+                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Fecha fin</label>
+                    <input name="fecha_fin" type="date" className="form-input" defaultValue={editingRetreat?.fecha_fin?.slice(0,10) || ''} />
                   </div>
                   <div>
                     <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Precio (EUR)</label>
@@ -1235,7 +1241,7 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse text-[0.62rem] min-w-[600px]">
                   <thead>
                     <tr>
-                      {['Título','Fecha','Precio','Plazas','Estado','Acciones'].map(h => (
+                      {['Título','Fechas','Precio','Plazas','Estado','Acciones'].map(h => (
                         <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
                       ))}
                     </tr>
@@ -1244,7 +1250,7 @@ export default function AdminDashboard() {
                     {retreats.map(r => (
                       <tr key={r.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.title}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.fecha ? r.fecha.slice(0,10) : '–'}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.fecha_inicio ? (r.fecha_inicio === r.fecha_fin ? r.fecha_inicio.slice(0,10) : `${r.fecha_inicio.slice(0,10)} → ${r.fecha_fin?.slice(0,10)}`) : '–'}</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.price} &euro;</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.plazas}</td>
                         <td className="px-3 py-2.5 border-b border-white/5">

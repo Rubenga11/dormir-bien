@@ -108,7 +108,8 @@ export interface Retreat {
   title: string        // DB: nombre
   image_url: string    // DB: imagen_url
   description: string  // DB: descripcion
-  fecha: string        // DB: fecha (single date)
+  fecha_inicio: string // DB: fecha_inicio
+  fecha_fin: string    // DB: fecha_fin
   price: number        // DB: precio
   plazas: number       // DB: plazas (slots/capacity)
   published: boolean   // DB: activo

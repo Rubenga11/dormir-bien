@@ -657,7 +657,7 @@ export function getRetreats(): Retreat[] {
 }
 
 export function getPublishedRetreats(): Retreat[] {
-  return retreats.filter(r => r.published).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''))
+  return retreats.filter(r => r.published).sort((a, b) => (a.fecha_inicio || '').localeCompare(b.fecha_inicio || ''))
 }
 
 export function getRetreatById(id: string): Retreat | undefined {
