@@ -113,9 +113,15 @@ export default function AppPage() {
         body: JSON.stringify(profileData),
       })
       const data = await res.json()
-      if (data.id) localStorage.setItem(LS_UID, data.id)
+      if (data.id) {
+        localStorage.setItem(LS_UID, data.id)
+      } else {
+        showToast('Error al registrar. Int\u00e9ntalo de nuevo.')
+        return
+      }
     } catch {
-      // Falla silenciosamente — el usuario puede seguir usando la app
+      showToast('Error de conexi\u00f3n. Int\u00e9ntalo de nuevo.')
+      return
     }
 
     localStorage.setItem(LS_PROFILE, JSON.stringify(profileData))
@@ -170,11 +176,18 @@ export default function AppPage() {
 
   const handleActivate = async () => {
     if (!selectedPattern) return
+
+    const uid = localStorage.getItem(LS_UID)
+    if (!uid) {
+      showToast('Reg\u00edstrate antes de iniciar una sesi\u00f3n')
+      setScreen('registro')
+      return
+    }
+
     setScreen('session')
     acquireWakeLock()
     sessionStartRef.current = Date.now()
 
-    const uid = localStorage.getItem(LS_UID)
     try {
       const res = await fetch(apiUrl('/api/sessions'), {
         method: 'POST',
