@@ -1,7 +1,7 @@
 // app/api/admin/stats/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  getDashboardSummary, getByGenero, getByEdad, getByMedicacion, getByTecnica, getByHoras, getUsers,
+  getDashboardSummary, getByGenero, getByEdad, getByMedicacion, getByTecnica, getByHoras, getUsersWithStats,
   getSessionsSummary, getSessionsByTecnica, getSessionsByDay, getSessionsByHour,
   getEngagementDistribution, getAllSessions,
   getTecnicaByGenero, getTecnicaByEdad, getTecnicaByMedicacion,
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Default: resumen
-    const allUsers = await getUsers()
+    const allUsers = await getUsersWithStats()
 
     return NextResponse.json({
       summary:      await getDashboardSummary(),
@@ -66,18 +66,7 @@ export async function GET(req: NextRequest) {
       byMedicacion: await getByMedicacion(),
       byTecnica:    await getByTecnica(),
       byHoras:      await getByHoras(),
-      users:        allUsers.slice(0, 200).map(u => ({
-        genero: u.genero,
-        edad: u.edad,
-        medicacion: u.medicacion,
-        ciudad: u.localidad || u.ciudad,
-        cp: u.cp,
-        horas_sueno: u.horas_sueno,
-        tecnica_favorita: u.tecnica_favorita,
-        country: u.country,
-        created_at: u.created_at,
-        email: u.email,
-      })),
+      users:        allUsers.slice(0, 200),
     })
   } catch (err: any) {
     console.error(`[stats] Error in section "${section}":`, err?.message || err)

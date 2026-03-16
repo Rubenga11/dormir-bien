@@ -63,17 +63,24 @@ export async function updateUser(id: string, updates: Record<string, unknown>): 
 
 export async function insertSession(data: {
   user_id?: string | null; patron: string; duracion_segundos?: number | null; completada?: boolean
-}): Promise<void> {
-  const { error } = await sb().from('sessions').insert({
+}): Promise<{ id: string }> {
+  const { data: row, error } = await sb().from('sessions').insert({
     user_id: data.user_id || null, patron: data.patron,
     duracion_segundos: data.duracion_segundos || null, completada: data.completada || false,
-  })
+  }).select('id').single()
   if (error) {
     console.error('insertSession error:', error.message)
     throw error
   }
   // increment global counter only if insert succeeded
   await sb().rpc('increment_sessions')
+  return { id: row.id }
+}
+
+export async function updateSession(id: string, updates: { duracion_segundos?: number; completada?: boolean }): Promise<boolean> {
+  const { error } = await sb().from('sessions').update(updates).eq('id', id)
+  if (error) { console.error('updateSession error:', error.message); return false }
+  return true
 }
 
 export async function getSessionsByUser(userId: string) {
@@ -97,6 +104,52 @@ export async function getAllSessions() {
   const { data, error } = await sb().from('sessions').select('*').order('created_at', { ascending: false })
   if (error) console.error('getAllSessions error:', error.message)
   return data || []
+}
+
+// ══════════════════════════════════════════
+// USER DETAIL (per-user stats)
+// ══════════════════════════════════════════
+
+export async function getUsersWithStats() {
+  const [users, sessions] = await Promise.all([getUsers(), getAllSessions()])
+  const sessionsByUser: Record<string, { total: number; completadas: number; duracionTotal: number; tecnicas: Record<string, number>; lastSession: string | null }> = {}
+
+  for (const s of sessions) {
+    if (!s.user_id) continue
+    if (!sessionsByUser[s.user_id]) sessionsByUser[s.user_id] = { total: 0, completadas: 0, duracionTotal: 0, tecnicas: {}, lastSession: null }
+    const u = sessionsByUser[s.user_id]
+    u.total++
+    if (s.completada) u.completadas++
+    if (s.duracion_segundos) u.duracionTotal += s.duracion_segundos
+    u.tecnicas[s.patron] = (u.tecnicas[s.patron] || 0) + 1
+    if (!u.lastSession || s.created_at > u.lastSession) u.lastSession = s.created_at
+  }
+
+  return users.map((u: any) => {
+    const stats = sessionsByUser[u.id] || { total: 0, completadas: 0, duracionTotal: 0, tecnicas: {}, lastSession: null }
+    const topTecnica = Object.entries(stats.tecnicas).sort((a, b) => b[1] - a[1])[0]
+    return {
+      id: u.id,
+      genero: u.genero,
+      edad: u.edad,
+      medicacion: u.medicacion,
+      ciudad: u.localidad || u.ciudad,
+      cp: u.cp,
+      horas_sueno: u.horas_sueno,
+      tecnica_favorita: u.tecnica_favorita,
+      email: u.email,
+      country: u.country,
+      created_at: u.created_at,
+      // Per-user session stats
+      sesiones_total: stats.total,
+      sesiones_completadas: stats.completadas,
+      tasa_completacion: stats.total > 0 ? Math.round(stats.completadas * 1000 / stats.total) / 10 : 0,
+      duracion_total: stats.duracionTotal,
+      tecnicas_usadas: stats.tecnicas,
+      tecnica_mas_usada: topTecnica ? topTecnica[0] : null,
+      ultima_sesion: stats.lastSession,
+    }
+  })
 }
 
 // ══════════════════════════════════════════
@@ -402,39 +455,55 @@ export async function getGeoTable() {
 
 // ══════════════════════════════════════════
 // BLOG
+// DB columns: id, titulo, slug, extracto, contenido, imagen_url, publicado, created_at, updated_at
 // ══════════════════════════════════════════
+
+function blogRowToPost(row: any): BlogPost {
+  return {
+    id: row.id, title: row.titulo, slug: row.slug,
+    image_url: row.imagen_url || '', description: row.extracto || '',
+    body: row.contenido || '', published: row.publicado,
+    created_at: row.created_at, updated_at: row.updated_at,
+  }
+}
 
 export async function insertBlogPost(data: Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'>): Promise<BlogPost> {
   const { data: row, error } = await sb().from('blog_posts').insert({
-    ...data, slug: slugify(data.title),
+    titulo: data.title, slug: slugify(data.title),
+    extracto: data.description, contenido: data.body,
+    imagen_url: data.image_url, publicado: data.published,
   }).select().single()
   if (error) throw error
-  return row
+  return blogRowToPost(row)
 }
 
 export async function getBlogPosts(): Promise<BlogPost[]> {
   const { data } = await sb().from('blog_posts').select('*').order('created_at', { ascending: false })
-  return data || []
+  return (data || []).map(blogRowToPost)
 }
 
 export async function getPublishedBlogPosts(): Promise<BlogPost[]> {
-  const { data } = await sb().from('blog_posts').select('*').eq('published', true).order('created_at', { ascending: false })
-  return data || []
+  const { data } = await sb().from('blog_posts').select('*').eq('publicado', true).order('created_at', { ascending: false })
+  return (data || []).map(blogRowToPost)
 }
 
 export async function getBlogPostById(id: string): Promise<BlogPost | undefined> {
   const { data } = await sb().from('blog_posts').select('*').eq('id', id).single()
-  return data || undefined
+  return data ? blogRowToPost(data) : undefined
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
-  const { data } = await sb().from('blog_posts').select('*').eq('slug', slug).eq('published', true).single()
-  return data || undefined
+  const { data } = await sb().from('blog_posts').select('*').eq('slug', slug).eq('publicado', true).single()
+  return data ? blogRowToPost(data) : undefined
 }
 
 export async function updateBlogPost(id: string, updates: Partial<Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'>>): Promise<boolean> {
-  const patch: any = { ...updates, updated_at: new Date().toISOString() }
-  if (updates.title) patch.slug = slugify(updates.title)
+  const patch: any = { updated_at: new Date().toISOString() }
+  if (updates.title !== undefined) { patch.titulo = updates.title; patch.slug = slugify(updates.title) }
+  if (updates.description !== undefined) patch.extracto = updates.description
+  if (updates.body !== undefined) patch.contenido = updates.body
+  if (updates.image_url !== undefined) patch.imagen_url = updates.image_url
+  if (updates.published !== undefined) patch.publicado = updates.published
   const { error } = await sb().from('blog_posts').update(patch).eq('id', id)
   return !error
 }
@@ -446,31 +515,53 @@ export async function deleteBlogPost(id: string): Promise<boolean> {
 
 // ══════════════════════════════════════════
 // RETREATS
+// DB columns: id, nombre, descripcion, fecha, precio, plazas, imagen_url, activo, created_at
 // ══════════════════════════════════════════
 
-export async function insertRetreat(data: Omit<Retreat, 'id' | 'created_at' | 'updated_at'>): Promise<Retreat> {
-  const { data: row, error } = await sb().from('retreats').insert(data).select().single()
+function retreatRowToRetreat(row: any): Retreat {
+  return {
+    id: row.id, title: row.nombre, description: row.descripcion || '',
+    fecha: row.fecha || '', price: Number(row.precio) || 0,
+    plazas: Number(row.plazas) || 0, image_url: row.imagen_url || '',
+    published: row.activo, created_at: row.created_at,
+  }
+}
+
+export async function insertRetreat(data: Omit<Retreat, 'id' | 'created_at'>): Promise<Retreat> {
+  const { data: row, error } = await sb().from('retreats').insert({
+    nombre: data.title, descripcion: data.description,
+    fecha: data.fecha, precio: data.price, plazas: data.plazas || 0,
+    imagen_url: data.image_url, activo: data.published,
+  }).select().single()
   if (error) throw error
-  return row
+  return retreatRowToRetreat(row)
 }
 
 export async function getRetreats(): Promise<Retreat[]> {
   const { data } = await sb().from('retreats').select('*').order('created_at', { ascending: false })
-  return data || []
+  return (data || []).map(retreatRowToRetreat)
 }
 
 export async function getPublishedRetreats(): Promise<Retreat[]> {
-  const { data } = await sb().from('retreats').select('*').eq('published', true).order('start_date', { ascending: true })
-  return data || []
+  const { data } = await sb().from('retreats').select('*').eq('activo', true).order('fecha', { ascending: true })
+  return (data || []).map(retreatRowToRetreat)
 }
 
 export async function getRetreatById(id: string): Promise<Retreat | undefined> {
   const { data } = await sb().from('retreats').select('*').eq('id', id).single()
-  return data || undefined
+  return data ? retreatRowToRetreat(data) : undefined
 }
 
-export async function updateRetreat(id: string, updates: Partial<Omit<Retreat, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
-  const { error } = await sb().from('retreats').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+export async function updateRetreat(id: string, updates: Partial<Omit<Retreat, 'id' | 'created_at'>>): Promise<boolean> {
+  const patch: any = {}
+  if (updates.title !== undefined) patch.nombre = updates.title
+  if (updates.description !== undefined) patch.descripcion = updates.description
+  if (updates.fecha !== undefined) patch.fecha = updates.fecha
+  if (updates.price !== undefined) patch.precio = updates.price
+  if (updates.plazas !== undefined) patch.plazas = updates.plazas
+  if (updates.image_url !== undefined) patch.imagen_url = updates.image_url
+  if (updates.published !== undefined) patch.activo = updates.published
+  const { error } = await sb().from('retreats').update(patch).eq('id', id)
   return !error
 }
 

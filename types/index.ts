@@ -93,27 +93,24 @@ export interface ChartItem {
 
 export interface BlogPost {
   id: string
-  title: string
+  title: string       // DB: titulo
   slug: string
-  image_url: string
-  description: string
-  body: string
-  published: boolean
+  image_url: string   // DB: imagen_url
+  description: string // DB: extracto
+  body: string        // DB: contenido
+  published: boolean  // DB: publicado
   created_at: string
   updated_at: string
 }
 
 export interface Retreat {
   id: string
-  title: string
-  image_url: string
-  description: string
-  start_date: string
-  end_date: string
-  location: string
-  price: number
-  registration_url: string
-  published: boolean
+  title: string        // DB: nombre
+  image_url: string    // DB: imagen_url
+  description: string  // DB: descripcion
+  fecha: string        // DB: fecha (single date)
+  price: number        // DB: precio
+  plazas: number       // DB: plazas (slots/capacity)
+  published: boolean   // DB: activo
   created_at: string
-  updated_at: string
 }

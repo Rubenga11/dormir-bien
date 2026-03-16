@@ -14,6 +14,7 @@ import { apiUrl } from '@/lib/api'
 // ── LocalStorage keys
 const LS_PROFILE = 'breathe_profile'  // perfil completo del usuario
 const LS_UID     = 'breathe_uid'      // UUID del usuario (devuelto por la API)
+const LS_SID     = 'breathe_sid'      // UUID de la sesión activa
 
 type Screen = 'selector' | 'registro' | 'audio-gate' | 'session'
 
@@ -148,49 +149,76 @@ export default function AppPage() {
   }
 
   // ── INICIAR SESIÓN ──
+  const sessionStartRef = useRef<number>(0)
+
   const handleActivate = async () => {
     if (!selectedPattern) return
     setScreen('session')
     acquireWakeLock()
+    sessionStartRef.current = Date.now()
 
     const uid = localStorage.getItem(LS_UID)
-    fetch(apiUrl('/api/sessions'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId:  uid,
-        patron:  selectedPattern.nombre,
-        completada: false,
-      }),
-    }).catch(() => {})
+    try {
+      const res = await fetch(apiUrl('/api/sessions'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId:  uid,
+          patron:  selectedPattern.nombre,
+          completada: false,
+        }),
+      })
+      const data = await res.json()
+      if (data.sessionId) localStorage.setItem(LS_SID, data.sessionId)
+    } catch {
+      // Falla silenciosamente
+    }
 
     try {
       await start(selectedPattern)
     } catch {
-      // Si falla el audio, reintentar sin await para no perder el gesto de usuario
       start(selectedPattern)
     }
   }
 
+  // ── FINALIZAR SESIÓN (enviar completación) ──
+  const finishSession = useCallback((completed: boolean) => {
+    const sid = localStorage.getItem(LS_SID)
+    if (!sid) return
+    const duracion = Math.round((Date.now() - sessionStartRef.current) / 1000)
+    fetch(apiUrl('/api/sessions'), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: sid,
+        duracionSegundos: duracion > 0 ? duracion : 1,
+        completada: completed,
+      }),
+    }).catch(() => {})
+    localStorage.removeItem(LS_SID)
+  }, [])
+
   // ── SALIR DE SESIÓN ──
   const handleExit = useCallback(() => {
+    finishSession(false)
     stop()
     releaseWakeLock()
     setHintVisible(false)
     setScreen('selector')
-  }, [stop, releaseWakeLock])
+  }, [stop, releaseWakeLock, finishSession])
 
-  // Detectar auto-stop del engine (ej. tras 10 min) → limpiar wake lock y volver al selector
+  // Detectar auto-stop del engine (ej. tras 10 min) → completar sesión y volver al selector
   const prevIsRunningRef = useRef(false)
   useEffect(() => {
     const wasRunning = prevIsRunningRef.current
     prevIsRunningRef.current = engineState.isRunning
     if (wasRunning && !engineState.isRunning && screen === 'session') {
+      finishSession(true) // auto-stop = sesión completada
       releaseWakeLock()
       setHintVisible(false)
       setScreen('selector')
     }
-  }, [engineState.isRunning, screen, releaseWakeLock])
+  }, [engineState.isRunning, screen, releaseWakeLock, finishSession])
 
   // ── MOSTRAR CONTROLES AL TOCAR ──
   const handleSessionTouch = () => {

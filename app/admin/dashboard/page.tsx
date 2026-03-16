@@ -31,6 +31,13 @@ function authFetchFormData(path: string, body: FormData): Promise<Response> {
 // ── Tipos locales
 type Tab = 'resumen' | 'sesiones' | 'correlaciones' | 'geo' | 'informes' | 'blog' | 'retiros'
 
+interface UserWithStats {
+  id:string; genero:string; edad:string; medicacion:string; ciudad:string; cp:string; horas_sueno:string
+  tecnica_favorita:string|null; email:string|null; country:string; created_at:string
+  sesiones_total:number; sesiones_completadas:number; tasa_completacion:number
+  duracion_total:number; tecnicas_usadas:Record<string,number>; tecnica_mas_usada:string|null; ultima_sesion:string|null
+}
+
 interface DashData {
   summary:      { total_usuarios:number; total_sesiones:number; total_ciudades:number; pct_medicacion:number; nuevos_7dias:number; sesiones_7dias:number; tasa_completacion:number; duracion_media:number }
   byGenero:     { genero:string; total:number; porcentaje:number }[]
@@ -38,7 +45,7 @@ interface DashData {
   byMedicacion: { medicacion:string; total:number }[]
   byTecnica:    { tecnica_favorita:string; total:number }[]
   byHoras:      { horas_sueno:string; total:number }[]
-  users:        { genero:string; edad:string; medicacion:string; ciudad:string; cp:string; horas_sueno:string; email:string|null; tecnica_favorita:string; country:string; created_at:string }[]
+  users:        UserWithStats[]
 }
 
 interface SessionsData {
@@ -501,11 +508,9 @@ export default function AdminDashboard() {
         title: fd.get('title') as string,
         image_url,
         description: fd.get('description') as string,
-        start_date: fd.get('start_date') as string,
-        end_date: fd.get('end_date') as string,
-        location: fd.get('location') as string,
+        fecha: fd.get('fecha') as string,
         price: Number(fd.get('price')) || 0,
-        registration_url: fd.get('registration_url') as string,
+        plazas: Number(fd.get('plazas')) || 0,
         published: fd.get('published') === 'on',
       }
       if (editingRetreat) {
@@ -681,17 +686,17 @@ export default function AdminDashboard() {
               <BarChart data={data.byHoras.map(d => ({ label: d.horas_sueno, value: d.total }))} />
             </div>
 
-            {/* Tabla de usuarios */}
+            {/* Tabla de usuarios con estadísticas completas */}
             <div className="chart-box">
               <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
-                Registros de Usuarios ({data.users.length})
+                Usuarios Detallados ({data.users.length})
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-[0.62rem] min-w-[520px]">
+                <table className="w-full border-collapse text-[0.62rem] min-w-[900px]">
                   <thead>
                     <tr>
-                      {['#','Género','Edad','Medicación','Ciudad','CP','Horas','Email','Técnica','Fecha'].map(h => (
-                        <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">
+                      {['#','Email','Género','Edad','Medicación','Ciudad','Horas Sueño','Sesiones','Completadas','% Comp.','Tiempo Total','Técnica Top','Última Sesión','Registro'].map(h => (
+                        <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-2 py-2 border-b border-white/10 whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -699,27 +704,68 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {data.users.map((u, i) => (
-                      <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{i+1}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5">
+                      <tr key={u.id || i} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-2 py-2.5 border-b border-white/5 text-lavender">{i+1}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star">{u.email || '–'}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5">
                           <span className={pillClass(u.genero)}>{u.genero}</span>
                         </td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.edad}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5">
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star">{u.edad}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5">
                           <span className={medicClass(u.medicacion)}>{u.medicacion}</span>
                         </td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.ciudad}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.cp}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.horas_sueno}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.email || '–'}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.tecnica_favorita || '–'}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{(u.created_at||'').slice(0,10)}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star">{u.ciudad}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star">{u.horas_sueno}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star font-semibold">{u.sesiones_total}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star">{u.sesiones_completadas}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5">
+                          <span className={u.tasa_completacion >= 50 ? 'pill pill-y' : u.tasa_completacion > 0 ? 'pill pill-o' : 'pill pill-n'}>
+                            {u.tasa_completacion}%
+                          </span>
+                        </td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-star">{u.duracion_total > 0 ? formatSeconds(u.duracion_total) : '–'}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-accent">{u.tecnica_mas_usada || '–'}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-lavender">{u.ultima_sesion ? u.ultima_sesion.slice(0,10) : '–'}</td>
+                        <td className="px-2 py-2.5 border-b border-white/5 text-lavender">{(u.created_at||'').slice(0,10)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {/* Desglose de técnicas por usuario (expandido) */}
+            {data.users.some(u => Object.keys(u.tecnicas_usadas || {}).length > 0) && (
+              <div className="chart-box">
+                <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
+                  Técnicas Usadas por Usuario
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-[0.62rem] min-w-[600px]">
+                    <thead>
+                      <tr>
+                        {['Email','Sueño Delta','Sueño Profundo','Adormecimiento','Relajación','Total'].map(h => (
+                          <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.users.filter(u => u.sesiones_total > 0).map((u, i) => (
+                        <tr key={u.id || i} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-3 py-2.5 border-b border-white/5 text-star">{u.email || `Usuario ${i+1}`}</td>
+                          {ALL_TECNICAS.map(t => (
+                            <td key={t} className="px-3 py-2.5 border-b border-white/5 text-star">
+                              {u.tecnicas_usadas?.[t] || 0}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2.5 border-b border-white/5 text-accent font-semibold">{u.sesiones_total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -1149,15 +1195,20 @@ export default function AdminDashboard() {
                   <input name="image_file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="form-input text-[0.58rem] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[0.52rem] file:bg-white/10 file:text-moon hover:file:bg-white/20" />
                   <input name="image_url" className="form-input" placeholder="...o URL de imagen" defaultValue={editingRetreat?.image_url || ''} />
                 </div>
-                <input name="description" className="form-input" placeholder="Descripción" defaultValue={editingRetreat?.description || ''} required />
-                <div className="grid grid-cols-2 gap-3">
-                  <input name="start_date" type="date" className="form-input" placeholder="Fecha inicio" defaultValue={editingRetreat?.start_date?.slice(0,10) || ''} required />
-                  <input name="end_date" type="date" className="form-input" placeholder="Fecha fin" defaultValue={editingRetreat?.end_date?.slice(0,10) || ''} required />
-                </div>
-                <input name="location" className="form-input" placeholder="Ubicación" defaultValue={editingRetreat?.location || ''} required />
-                <div className="grid grid-cols-2 gap-3">
-                  <input name="price" type="number" step="0.01" className="form-input" placeholder="Precio (EUR)" defaultValue={editingRetreat?.price || ''} required />
-                  <input name="registration_url" className="form-input" placeholder="URL de registro" defaultValue={editingRetreat?.registration_url || ''} />
+                <textarea name="description" className="form-textarea" placeholder="Descripción del retiro" defaultValue={editingRetreat?.description || ''} />
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Fecha</label>
+                    <input name="fecha" type="date" className="form-input" defaultValue={editingRetreat?.fecha?.slice(0,10) || ''} required />
+                  </div>
+                  <div>
+                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Precio (EUR)</label>
+                    <input name="price" type="number" step="0.01" className="form-input" placeholder="0.00" defaultValue={editingRetreat?.price || ''} />
+                  </div>
+                  <div>
+                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Plazas</label>
+                    <input name="plazas" type="number" className="form-input" placeholder="0" defaultValue={editingRetreat?.plazas || ''} />
+                  </div>
                 </div>
                 <label className="flex items-center gap-2 text-[0.62rem] text-moon cursor-pointer">
                   <input type="checkbox" name="published" defaultChecked={editingRetreat?.published ?? false} className="accent-[var(--glow)]" />
@@ -1184,7 +1235,7 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse text-[0.62rem] min-w-[600px]">
                   <thead>
                     <tr>
-                      {['Título','Ubicación','Fechas','Precio','Estado','Acciones'].map(h => (
+                      {['Título','Fecha','Precio','Plazas','Estado','Acciones'].map(h => (
                         <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
                       ))}
                     </tr>
@@ -1193,12 +1244,12 @@ export default function AdminDashboard() {
                     {retreats.map(r => (
                       <tr key={r.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.title}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.location}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.start_date.slice(0,10)} — {r.end_date.slice(0,10)}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.fecha ? r.fecha.slice(0,10) : '–'}</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.price} &euro;</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.plazas}</td>
                         <td className="px-3 py-2.5 border-b border-white/5">
                           <span className={r.published ? 'pill pill-y' : 'pill pill-n'}>
-                            {r.published ? 'Publicado' : 'Borrador'}
+                            {r.published ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
                         <td className="px-3 py-2.5 border-b border-white/5">

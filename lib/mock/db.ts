@@ -10,6 +10,7 @@ interface MockUser {
   edad: string
   medicacion: string
   ciudad: string
+  localidad?: string
   cp: string
   horas_sueno: string
   email: string | null
@@ -200,9 +201,10 @@ export function insertSession(data: {
   patron: string
   duracion_segundos?: number | null
   completada?: boolean
-}): void {
+}): { id: string } {
+  const id = uuid()
   sessions.push({
-    id: uuid(),
+    id,
     user_id: data.user_id || null,
     patron: data.patron,
     duracion_segundos: data.duracion_segundos || null,
@@ -210,6 +212,34 @@ export function insertSession(data: {
     created_at: new Date().toISOString(),
   })
   totalSessions++
+  return { id }
+}
+
+export function updateSession(id: string, updates: { duracion_segundos?: number; completada?: boolean }): boolean {
+  const session = sessions.find(s => s.id === id)
+  if (!session) return false
+  if (updates.duracion_segundos !== undefined) session.duracion_segundos = updates.duracion_segundos
+  if (updates.completada !== undefined) session.completada = updates.completada
+  return true
+}
+
+export function getUsersWithStats() {
+  return users.map(u => {
+    const userSessions = sessions.filter(s => s.user_id === u.id)
+    const tecnicas: Record<string, number> = {}
+    for (const s of userSessions) tecnicas[s.patron] = (tecnicas[s.patron] || 0) + 1
+    const topTecnica = Object.entries(tecnicas).sort((a, b) => b[1] - a[1])[0]
+    const completadas = userSessions.filter(s => s.completada).length
+    const duracionTotal = userSessions.reduce((sum, s) => sum + (s.duracion_segundos || 0), 0)
+    const lastSession = userSessions.length > 0 ? userSessions[userSessions.length - 1].created_at : null
+    return {
+      ...u, ciudad: u.localidad || u.ciudad,
+      sesiones_total: userSessions.length, sesiones_completadas: completadas,
+      tasa_completacion: userSessions.length > 0 ? Math.round(completadas * 1000 / userSessions.length) / 10 : 0,
+      duracion_total: duracionTotal, tecnicas_usadas: tecnicas,
+      tecnica_mas_usada: topTecnica ? topTecnica[0] : null, ultima_sesion: lastSession,
+    }
+  })
 }
 
 export function getSessionsByUser(userId: string): MockSession[] {
@@ -615,9 +645,9 @@ export function deleteBlogPost(id: string): boolean {
 }
 
 // ── Retreat CRUD
-export function insertRetreat(data: Omit<Retreat, 'id' | 'created_at' | 'updated_at'>): Retreat {
+export function insertRetreat(data: Omit<Retreat, 'id' | 'created_at'>): Retreat {
   const now = new Date().toISOString()
-  const retreat: Retreat = { ...data, id: uuid(), created_at: now, updated_at: now }
+  const retreat: Retreat = { ...data, id: uuid(), created_at: now }
   retreats.push(retreat)
   return retreat
 }
@@ -627,17 +657,17 @@ export function getRetreats(): Retreat[] {
 }
 
 export function getPublishedRetreats(): Retreat[] {
-  return retreats.filter(r => r.published).sort((a, b) => a.start_date.localeCompare(b.start_date))
+  return retreats.filter(r => r.published).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''))
 }
 
 export function getRetreatById(id: string): Retreat | undefined {
   return retreats.find(r => r.id === id)
 }
 
-export function updateRetreat(id: string, data: Partial<Omit<Retreat, 'id' | 'created_at' | 'updated_at'>>): boolean {
+export function updateRetreat(id: string, data: Partial<Omit<Retreat, 'id' | 'created_at'>>): boolean {
   const retreat = retreats.find(r => r.id === id)
   if (!retreat) return false
-  Object.assign(retreat, data, { updated_at: new Date().toISOString() })
+  Object.assign(retreat, data)
   return true
 }
 

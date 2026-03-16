@@ -15,20 +15,26 @@ export async function POST(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
     const body = await parseJsonBody(req)
+
+    if (!body.title?.trim()) return NextResponse.json({ error: 'Título requerido' }, { status: 400 })
+    if (!body.fecha) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    if (!dateRegex.test(body.fecha)) return NextResponse.json({ error: 'Formato de fecha inválido (YYYY-MM-DD)' }, { status: 400 })
+
     const retreat = await insertRetreat({
-      title: body.title || '',
+      title: body.title.trim(),
       image_url: body.image_url || '',
       description: body.description || '',
-      start_date: body.start_date || '',
-      end_date: body.end_date || '',
-      location: body.location || '',
+      fecha: body.fecha,
       price: Number(body.price) || 0,
-      registration_url: body.registration_url || '',
+      plazas: Number(body.plazas) || 0,
       published: body.published ?? false,
     })
     return NextResponse.json(retreat, { status: 201 })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al crear retiro'
+    console.error('[POST /api/admin/retreats]', message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
@@ -38,12 +44,19 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await parseJsonBody(req)
     if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    if (body.fecha && !dateRegex.test(body.fecha)) return NextResponse.json({ error: 'Formato de fecha inválido' }, { status: 400 })
     if (body.price !== undefined) body.price = Number(body.price)
-    const ok = await updateRetreat(body.id, body)
+    if (body.plazas !== undefined) body.plazas = Number(body.plazas)
+
+    const { id, ...updates } = body
+    const ok = await updateRetreat(id, updates)
     if (!ok) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-    return NextResponse.json(await getRetreatById(body.id))
+    return NextResponse.json(await getRetreatById(id))
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al actualizar retiro'
+    console.error('[PATCH /api/admin/retreats]', message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

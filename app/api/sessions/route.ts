@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
-import { insertSession, getMostUsedPattern, updateUser } from '@/lib/db'
+import { insertSession, updateSession, getMostUsedPattern, updateUser } from '@/lib/db'
 import { parseJsonBody } from '@/lib/parse-body'
 
 export async function POST(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     if (!patron) return NextResponse.json({ error: 'patron requerido' }, { status: 400 })
 
-    await insertSession({
+    const session = await insertSession({
       user_id: userId || null,
       patron,
       duracion_segundos: duracionSegundos || null,
@@ -26,9 +26,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true }, { status: 201 })
+    return NextResponse.json({ ok: true, sessionId: session.id }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/sessions] unexpected:', err)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { sessionId, duracionSegundos, completada } = await parseJsonBody(req)
+
+    if (!sessionId) return NextResponse.json({ error: 'sessionId requerido' }, { status: 400 })
+
+    const updates: { duracion_segundos?: number; completada?: boolean } = {}
+    if (duracionSegundos !== undefined) updates.duracion_segundos = Math.round(Number(duracionSegundos))
+    if (completada !== undefined) updates.completada = !!completada
+
+    const ok = await updateSession(sessionId, updates)
+    if (!ok) return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 })
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[PATCH /api/sessions] unexpected:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
