@@ -524,6 +524,7 @@ function retreatRowToRetreat(row: any): Retreat {
   const fecha_fin = row.fecha_fin || fecha_inicio
   return {
     id: row.id, title: row.nombre, description: row.descripcion || '',
+    ubicacion: row.ubicacion || '',
     fecha_inicio, fecha_fin,
     price: Number(row.precio) || 0,
     plazas: Number(row.plazas) || 0, image_url: row.imagen_url || '',
@@ -534,6 +535,7 @@ function retreatRowToRetreat(row: any): Retreat {
 export async function insertRetreat(data: Omit<Retreat, 'id' | 'created_at'>): Promise<Retreat> {
   const { data: row, error } = await sb().from('retreats').insert({
     nombre: data.title, descripcion: data.description,
+    ubicacion: data.ubicacion || '',
     fecha_inicio: data.fecha_inicio, fecha_fin: data.fecha_fin,
     precio: data.price, plazas: data.plazas || 0,
     imagen_url: data.image_url, activo: data.published,
@@ -580,6 +582,7 @@ export async function updateRetreat(id: string, updates: Partial<Omit<Retreat, '
   if (updates.fecha_fin !== undefined) patch.fecha_fin = updates.fecha_fin
   if (updates.price !== undefined) patch.precio = updates.price
   if (updates.plazas !== undefined) patch.plazas = updates.plazas
+  if (updates.ubicacion !== undefined) patch.ubicacion = updates.ubicacion
   if (updates.image_url !== undefined) patch.imagen_url = updates.image_url
   if (updates.published !== undefined) patch.activo = updates.published
   const { error } = await sb().from('retreats').update(patch).eq('id', id)
@@ -597,4 +600,38 @@ export async function updateRetreat(id: string, updates: Partial<Omit<Retreat, '
 export async function deleteRetreat(id: string): Promise<boolean> {
   const { error } = await sb().from('retreats').delete().eq('id', id)
   return !error
+}
+
+// ══════════════════════════════════════════
+// RETREAT REGISTRATIONS
+// ══════════════════════════════════════════
+
+export async function getRetreatRegistrationCount(retreatId: string): Promise<number> {
+  const { count, error } = await sb().from('retreat_registrations').select('*', { count: 'exact', head: true }).eq('retreat_id', retreatId)
+  if (error) { console.error('getRetreatRegistrationCount error:', error.message); return 0 }
+  return count || 0
+}
+
+export async function getUserRetreatRegistrations(userId: string): Promise<string[]> {
+  const { data, error } = await sb().from('retreat_registrations').select('retreat_id').eq('user_id', userId)
+  if (error) { console.error('getUserRetreatRegistrations error:', error.message); return [] }
+  return (data || []).map((r: any) => r.retreat_id)
+}
+
+export async function registerForRetreat(userId: string, retreatId: string): Promise<{ id: string }> {
+  // Check retreat exists and has capacity
+  const retreat = await getRetreatById(retreatId)
+  if (!retreat) throw Object.assign(new Error('Retiro no encontrado'), { status: 404 })
+
+  if (retreat.plazas > 0) {
+    const count = await getRetreatRegistrationCount(retreatId)
+    if (count >= retreat.plazas) throw Object.assign(new Error('No quedan plazas disponibles'), { status: 409 })
+  }
+
+  const { data, error } = await sb().from('retreat_registrations').insert({ user_id: userId, retreat_id: retreatId }).select('id').single()
+  if (error) {
+    if (error.code === '23505') throw Object.assign(new Error('Ya estás inscrito en este retiro'), { status: 409 })
+    throw error
+  }
+  return { id: data.id }
 }

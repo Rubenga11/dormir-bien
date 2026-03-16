@@ -511,6 +511,7 @@ export default function AdminDashboard() {
         title: fd.get('title') as string,
         image_url,
         description: fd.get('description') as string,
+        ubicacion: fd.get('ubicacion') as string || '',
         fecha_inicio,
         fecha_fin: (fd.get('fecha_fin') as string) || fecha_inicio,
         price: Number(fd.get('price')) || 0,
@@ -1304,6 +1305,7 @@ export default function AdminDashboard() {
                   <input name="image_url" className="form-input" placeholder="...o URL de imagen" defaultValue={editingRetreat?.image_url || ''} />
                 </div>
                 <textarea name="description" className="form-textarea" placeholder="Descripción del retiro" defaultValue={editingRetreat?.description || ''} />
+                <input name="ubicacion" className="form-input" placeholder="Ubicación (ej: Sierra de Gredos, Ávila)" defaultValue={editingRetreat?.ubicacion || ''} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Fecha inicio</label>
@@ -1347,7 +1349,7 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse text-[0.62rem] min-w-[600px]">
                   <thead>
                     <tr>
-                      {['Título','Fechas','Precio','Plazas','Estado','Acciones'].map(h => (
+                      {['Título','Ubicación','Fechas','Precio','Plazas','Estado','Acciones'].map(h => (
                         <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
                       ))}
                     </tr>
@@ -1356,6 +1358,7 @@ export default function AdminDashboard() {
                     {retreats.map(r => (
                       <tr key={r.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.title}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.ubicacion || '–'}</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.fecha_inicio ? (r.fecha_inicio === r.fecha_fin ? r.fecha_inicio.slice(0,10) : `${r.fecha_inicio.slice(0,10)} → ${r.fecha_fin?.slice(0,10)}`) : '–'}</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.price} &euro;</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.plazas}</td>

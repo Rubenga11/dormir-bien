@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       title: body.title.trim(),
       image_url: body.image_url || '',
       description: body.description || '',
+      ubicacion: body.ubicacion || '',
       fecha_inicio: body.fecha_inicio,
       fecha_fin,
       price: Number(body.price) || 0,
