@@ -18,6 +18,14 @@ const LS_SID     = 'breathe_sid'      // UUID de la sesión activa
 
 type Screen = 'selector' | 'registro' | 'audio-gate' | 'session'
 
+interface UserStats {
+  tecnica_favorita: string | null
+  sesiones_total: number
+  sesiones_completadas: number
+  ultima_sesion: string | null
+  tecnicas_usadas: Record<string, number>
+}
+
 interface UserProfile {
   genero: string
   edad: string
@@ -48,15 +56,24 @@ export default function AppPage() {
   const [editingProfile, setEditingProfile] = useState(false)
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+
   const { state: engineState, start, stop, togglePause, phaseLabel } = useBreathEngine()
   const { acquire: acquireWakeLock, release: releaseWakeLock } = useWakeLock()
 
-  // Comprobar perfil previo al montar
+  // Comprobar perfil previo al montar + cargar stats si es recurrente
   useEffect(() => {
     const profile = getSavedProfile()
     if (profile) {
       setScreen('selector')
       setForm(profile)
+      const uid = localStorage.getItem(LS_UID)
+      if (uid) {
+        fetch(apiUrl(`/api/users/${uid}/stats`))
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data) setUserStats(data) })
+          .catch(() => {})
+      }
     } else {
       setScreen('registro')
     }
@@ -207,6 +224,16 @@ export default function AppPage() {
     setScreen('selector')
   }, [stop, releaseWakeLock, finishSession])
 
+  // Refrescar stats del usuario
+  const refreshStats = useCallback(() => {
+    const uid = localStorage.getItem(LS_UID)
+    if (!uid) return
+    fetch(apiUrl(`/api/users/${uid}/stats`))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setUserStats(data) })
+      .catch(() => {})
+  }, [])
+
   // Detectar auto-stop del engine (ej. tras 10 min) → completar sesión y volver al selector
   const prevIsRunningRef = useRef(false)
   useEffect(() => {
@@ -217,8 +244,9 @@ export default function AppPage() {
       releaseWakeLock()
       setHintVisible(false)
       setScreen('selector')
+      refreshStats()
     }
-  }, [engineState.isRunning, screen, releaseWakeLock, finishSession])
+  }, [engineState.isRunning, screen, releaseWakeLock, finishSession, refreshStats])
 
   // ── MOSTRAR CONTROLES AL TOCAR ──
   const handleSessionTouch = () => {
@@ -441,6 +469,12 @@ export default function AppPage() {
             <h2 className="font-serif font-light text-moon text-3xl">
               {isReturningUser ? 'Buenas noches' : 'Elige tu ritmo'}
             </h2>
+            {userStats && userStats.sesiones_completadas > 0 && (
+              <p className="text-[0.56rem] text-lavender/70 tracking-wider mt-2">
+                {userStats.sesiones_completadas} {userStats.sesiones_completadas === 1 ? 'sesión completada' : 'sesiones completadas'}
+                {userStats.tecnica_favorita && <> &middot; favorita: <span className="text-accent">{userStats.tecnica_favorita}</span></>}
+              </p>
+            )}
             <p className="text-[0.58rem] text-lavender tracking-wider leading-loose mt-2">
               Empieza por el nivel 1 &middot; el m&aacute;s lento<br />
               Sube un nivel si sientes que te falta el aire<br />
@@ -466,7 +500,12 @@ export default function AppPage() {
                   <div className="text-[0.52rem] text-lavender/50 tracking-widest uppercase mb-0.5">
                     Nivel {pattern.nivel}{pattern.nivel === 1 ? ' \u00b7 m\u00e1s lento' : pattern.nivel === 4 ? ' \u00b7 si sientes falta de aire' : ''}
                   </div>
-                  <div className="font-serif text-moon text-xl mb-0.5">{pattern.nombre}</div>
+                  <div className="font-serif text-moon text-xl mb-0.5">
+                    {pattern.nombre}
+                    {userStats?.tecnica_favorita === pattern.nombre && (
+                      <span className="ml-2 text-[0.48rem] tracking-widest uppercase text-accent font-sans font-normal">Tu favorita</span>
+                    )}
+                  </div>
                   <div className="text-[0.58rem] text-lavender leading-relaxed">{pattern.descripcion}</div>
                 </div>
                 <div className="text-right flex-shrink-0 text-[0.54rem] text-accent tracking-widest">
