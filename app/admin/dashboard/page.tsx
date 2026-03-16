@@ -54,7 +54,7 @@ interface SessionsData {
   sessionsByDay: { date:string; count:number; completed:number }[]
   sessionsByHour: { hour:number; count:number }[]
   engagement: { bucket:string; count:number }[]
-  recentSessions: { patron:string; duracion_segundos:number|null; completada:boolean; created_at:string }[]
+  recentSessions: { patron:string; duracion_segundos:number|null; completada:boolean; created_at:string; email:string|null }[]
 }
 
 interface CorrelationsData {
@@ -322,6 +322,8 @@ export default function AdminDashboard() {
   const [toast, setToast]     = useState('')
   const [authed, setAuthed]   = useState(false)
   const [reportType, setReportType] = useState('completo')
+  const [emailFilter, setEmailFilter] = useState('')
+  const [informeEmail, setInformeEmail] = useState('')
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [blogLoaded, setBlogLoaded] = useState(false)
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null)
@@ -861,22 +863,34 @@ export default function AdminDashboard() {
 
             {/* Recent sessions table */}
             <div className="chart-box">
-              <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">
-                Sesiones Recientes ({sessionsData.recentSessions.length})
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender">
+                  Sesiones Recientes ({sessionsData.recentSessions.filter(s => !emailFilter || (s.email || '').toLowerCase().includes(emailFilter.toLowerCase())).length})
+                </div>
+                <input
+                  type="text"
+                  placeholder="Filtrar por email..."
+                  value={emailFilter}
+                  onChange={e => setEmailFilter(e.target.value)}
+                  className="form-input text-[0.58rem] px-3 py-1.5 w-56"
+                />
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-[0.62rem] min-w-[400px]">
+                <table className="w-full border-collapse text-[0.62rem] min-w-[500px]">
                   <thead>
                     <tr>
-                      {['#','Técnica','Duración','Completada','Fecha'].map(h => (
+                      {['#','Email','Técnica','Duración','Completada','Fecha'].map(h => (
                         <th key={h} className="text-left text-lavender tracking-widest text-[0.52rem] uppercase px-3 py-2 border-b border-white/10">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {sessionsData.recentSessions.map((s, i) => (
+                    {sessionsData.recentSessions
+                      .filter(s => !emailFilter || (s.email || '').toLowerCase().includes(emailFilter.toLowerCase()))
+                      .map((s, i) => (
                       <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{i+1}</td>
+                        <td className="px-3 py-2.5 border-b border-white/5 text-moon text-[0.56rem]">{s.email || '–'}</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{s.patron}</td>
                         <td className="px-3 py-2.5 border-b border-white/5 text-star">{s.duracion_segundos ? formatSeconds(s.duracion_segundos) : '–'}</td>
                         <td className="px-3 py-2.5 border-b border-white/5">
@@ -1051,6 +1065,7 @@ export default function AdminDashboard() {
                   { id: 'clinico', label: 'Clínico' },
                   { id: 'engagement', label: 'Engagement' },
                   { id: 'demografico', label: 'Demográfico' },
+                  { id: 'por_email', label: 'Por Email' },
                 ].map(r => (
                   <label key={r.id} className="radio-pill">
                     <input
@@ -1070,8 +1085,99 @@ export default function AdminDashboard() {
                 {reportType === 'clinico' && 'Enfocado en medicación, correlaciones sueño-técnica y duración por edad. Ideal para profesionales sanitarios.'}
                 {reportType === 'engagement' && 'Sesiones, retención, tasas de completación y engagement. Ideal para empresas de bienestar.'}
                 {reportType === 'demografico' && 'Desglose por género, edad y geografía. Ideal para investigadores.'}
+                {reportType === 'por_email' && 'Busca un usuario por email y genera un resumen con sus sesiones, técnicas y estadísticas.'}
               </div>
             </div>
+
+            {reportType === 'por_email' && (
+              <div className="chart-box">
+                <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">Informe por Email</div>
+                <div className="flex gap-2 mb-4 items-center flex-wrap">
+                  <input
+                    type="email"
+                    placeholder="Email del usuario..."
+                    value={informeEmail}
+                    onChange={e => setInformeEmail(e.target.value)}
+                    className="form-input text-[0.58rem] px-3 py-1.5 w-64"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!informeEmail.trim()) { showToast('Escribe un email'); return }
+                      const u = data?.users?.find(u => u.email?.toLowerCase() === informeEmail.trim().toLowerCase())
+                      if (!u) { showToast('Usuario no encontrado'); return }
+                      setInformeEmail(informeEmail.trim())
+                    }}
+                    className="btn-ghost text-[0.58rem] px-5 py-1.5"
+                  >Buscar</button>
+                </div>
+                {(() => {
+                  const u = data?.users?.find(u => u.email?.toLowerCase() === informeEmail.trim().toLowerCase())
+                  if (!u) return informeEmail.trim() ? <div className="text-moon text-[0.58rem]">No se encontró usuario con ese email. Asegúrate de que el email es exacto.</div> : null
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {[
+                          { label: 'Email', value: u.email || '–' },
+                          { label: 'Género', value: u.genero },
+                          { label: 'Edad', value: u.edad },
+                          { label: 'Ciudad', value: u.ciudad || '–' },
+                          { label: 'País', value: u.country || '–' },
+                          { label: 'Medicación', value: u.medicacion },
+                          { label: 'Horas sueño', value: u.horas_sueno },
+                          { label: 'Sesiones totales', value: String(u.sesiones_total) },
+                          { label: 'Completadas', value: String(u.sesiones_completadas) },
+                          { label: 'Tasa completación', value: `${u.tasa_completacion}%` },
+                          { label: 'Técnica favorita', value: u.tecnica_mas_usada || '–' },
+                          { label: 'Última sesión', value: u.ultima_sesion ? u.ultima_sesion.slice(0, 16).replace('T', ' ') : '–' },
+                          { label: 'Registro', value: u.created_at.slice(0, 10) },
+                        ].map(item => (
+                          <div key={item.label} className="bg-white/[0.03] rounded-lg p-2.5">
+                            <div className="text-[0.48rem] text-lavender tracking-widest uppercase mb-1">{item.label}</div>
+                            <div className="text-[0.62rem] text-star">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {u.tecnicas_usadas && Object.keys(u.tecnicas_usadas).length > 0 && (
+                        <div className="bg-white/[0.03] rounded-lg p-3">
+                          <div className="text-[0.48rem] text-lavender tracking-widest uppercase mb-2">Técnicas usadas</div>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(u.tecnicas_usadas).map(([t, n]) => (
+                              <span key={t} className="pill pill-y text-[0.52rem]">{t}: {n}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          const rows = [
+                            ['Campo', 'Valor'],
+                            ['Email', u.email || ''],
+                            ['Género', u.genero],
+                            ['Edad', u.edad],
+                            ['Ciudad', u.ciudad || ''],
+                            ['País', u.country || ''],
+                            ['Medicación', u.medicacion],
+                            ['Horas sueño', u.horas_sueno],
+                            ['Sesiones totales', String(u.sesiones_total)],
+                            ['Completadas', String(u.sesiones_completadas)],
+                            ['Tasa completación', `${u.tasa_completacion}%`],
+                            ['Técnica favorita', u.tecnica_mas_usada || ''],
+                            ['Última sesión', u.ultima_sesion || ''],
+                            ['Técnicas usadas', Object.entries(u.tecnicas_usadas || {}).map(([t, n]) => `${t}:${n}`).join('; ')],
+                          ]
+                          const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n')
+                          const blob = new Blob([csv], { type: 'text/csv' })
+                          const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `informe_${u.email}_${new Date().toISOString().slice(0,10)}.csv` })
+                          a.click()
+                          showToast('CSV descargado')
+                        }}
+                        className="btn-ghost text-[0.58rem] px-5 py-1.5"
+                      >Exportar CSV</button>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
 
             <div className="chart-box">
               <div className="text-[0.56rem] tracking-[0.28em] uppercase text-lavender mb-4">Exportar</div>

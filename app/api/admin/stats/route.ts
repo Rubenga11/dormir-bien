@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   getDashboardSummary, getByGenero, getByEdad, getByMedicacion, getByTecnica, getByHoras, getUsersWithStats,
   getSessionsSummary, getSessionsByTecnica, getSessionsByDay, getSessionsByHour,
-  getEngagementDistribution, getAllSessions,
+  getEngagementDistribution, getAllSessions, getUsers,
   getTecnicaByGenero, getTecnicaByEdad, getTecnicaByMedicacion,
   getCompletionByMedicacion, getDuracionByEdad, getHorasSuenoByTecnica, getMedicacionByHorasSueno,
   getUsersByCountry, getUsersByCiudad, getSessionsByCountry, getGeoTable,
@@ -17,12 +17,14 @@ export async function GET(req: NextRequest) {
 
   try {
     if (section === 'sesiones') {
-      const allSessions = await getAllSessions()
+      const [allSessions, users] = await Promise.all([getAllSessions(), getUsers()])
+      const emailMap = new Map((users as any[]).map(u => [u.id, u.email || null]))
       const recentSessions = allSessions.slice(0, 50).map(s => ({
         patron: s.patron,
         duracion_segundos: s.duracion_segundos,
         completada: s.completada,
         created_at: s.created_at,
+        email: s.user_id ? emailMap.get(s.user_id) || null : null,
       }))
 
       return NextResponse.json({
