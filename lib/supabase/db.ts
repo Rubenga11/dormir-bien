@@ -533,13 +533,21 @@ function retreatRowToRetreat(row: any): Retreat {
 }
 
 export async function insertRetreat(data: Omit<Retreat, 'id' | 'created_at'>): Promise<Retreat> {
-  const { data: row, error } = await sb().from('retreats').insert({
+  const insertData: Record<string, unknown> = {
     nombre: data.title, descripcion: data.description,
     ubicacion: data.ubicacion || '',
     fecha_inicio: data.fecha_inicio, fecha_fin: data.fecha_fin,
     precio: data.price, plazas: data.plazas || 0,
     imagen_url: data.image_url, activo: data.published,
-  }).select().single()
+  }
+  const { data: row, error } = await sb().from('retreats').insert(insertData).select().single()
+  if (error && error.message?.includes('ubicacion')) {
+    // Fallback: ubicacion column not yet added
+    delete insertData.ubicacion
+    const { data: row2, error: error2 } = await sb().from('retreats').insert(insertData).select().single()
+    if (error2) throw error2
+    return retreatRowToRetreat(row2)
+  }
   if (error && error.message?.includes('fecha_inicio')) {
     // Fallback: old schema with single fecha column
     const { data: row2, error: error2 } = await sb().from('retreats').insert({
@@ -586,6 +594,12 @@ export async function updateRetreat(id: string, updates: Partial<Omit<Retreat, '
   if (updates.image_url !== undefined) patch.imagen_url = updates.image_url
   if (updates.published !== undefined) patch.activo = updates.published
   const { error } = await sb().from('retreats').update(patch).eq('id', id)
+  if (error && error.message?.includes('ubicacion')) {
+    // Fallback: ubicacion column not yet added
+    delete patch.ubicacion
+    const { error: e2 } = await sb().from('retreats').update(patch).eq('id', id)
+    return !e2
+  }
   if (error && error.message?.includes('fecha_inicio')) {
     // Fallback: old schema
     const oldPatch: any = { ...patch }
@@ -608,13 +622,22 @@ export async function deleteRetreat(id: string): Promise<boolean> {
 
 export async function getRetreatRegistrationCount(retreatId: string): Promise<number> {
   const { count, error } = await sb().from('retreat_registrations').select('*', { count: 'exact', head: true }).eq('retreat_id', retreatId)
-  if (error) { console.error('getRetreatRegistrationCount error:', error.message); return 0 }
+  if (error) {
+    // Table may not exist yet (migration not run)
+    if (error.message?.includes('retreat_registrations')) return 0
+    console.error('getRetreatRegistrationCount error:', error.message)
+    return 0
+  }
   return count || 0
 }
 
 export async function getUserRetreatRegistrations(userId: string): Promise<string[]> {
   const { data, error } = await sb().from('retreat_registrations').select('retreat_id').eq('user_id', userId)
-  if (error) { console.error('getUserRetreatRegistrations error:', error.message); return [] }
+  if (error) {
+    if (error.message?.includes('retreat_registrations')) return []
+    console.error('getUserRetreatRegistrations error:', error.message)
+    return []
+  }
   return (data || []).map((r: any) => r.retreat_id)
 }
 
@@ -631,6 +654,7 @@ export async function registerForRetreat(userId: string, retreatId: string): Pro
   const { data, error } = await sb().from('retreat_registrations').insert({ user_id: userId, retreat_id: retreatId }).select('id').single()
   if (error) {
     if (error.code === '23505') throw Object.assign(new Error('Ya estás inscrito en este retiro'), { status: 409 })
+    if (error.message?.includes('retreat_registrations')) throw Object.assign(new Error('Sistema de inscripciones no disponible. Contacta al administrador.'), { status: 503 })
     throw error
   }
   return { id: data.id }

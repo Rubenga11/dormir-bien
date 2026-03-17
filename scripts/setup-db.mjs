@@ -32,6 +32,7 @@ const migrations = [
   join(__dirname, '..', 'supabase', 'migrations', '003_users_email_and_storage.sql'),
   join(__dirname, '..', 'supabase', 'migrations', '004_session_updates_and_localidad.sql'),
   join(__dirname, '..', 'supabase', 'migrations', '005_retreats_fecha_range.sql'),
+  join(__dirname, '..', 'supabase', 'migrations', '006_retreat_registrations_and_ubicacion.sql'),
 ]
 
 async function runSQL(sql, name) {
