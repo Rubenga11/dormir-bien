@@ -4,6 +4,20 @@ import BlogPostClient from './client'
 export const dynamicParams = true
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  // Fetch published slugs from API so each blog post gets a static page
+  try {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || ''
+    const res = await fetch(`${apiBase}/api/blog`, { next: { revalidate: 0 } })
+    if (res.ok) {
+      const posts: { slug: string }[] = await res.json()
+      const slugs = posts.map(p => ({ slug: p.slug }))
+      // Keep '_' as fallback for slugs added after build
+      if (!slugs.find(s => s.slug === '_')) slugs.push({ slug: '_' })
+      return slugs
+    }
+  } catch {
+    // API not available during build — use placeholder
+  }
   return [{ slug: '_' }]
 }
 
