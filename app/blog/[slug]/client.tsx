@@ -2,7 +2,6 @@
 // app/blog/[slug]/client.tsx — Blog post client component
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
 import { apiUrl } from '@/lib/api'
 import type { BlogPost } from '@/types'
 
@@ -83,11 +82,17 @@ function markdownToHtml(md: string): string {
 }
 
 export default function BlogPostClient() {
-  const params = useParams()
-  const slug = params.slug as string
+  // Extract slug from URL path directly (static export doesn't support useParams for dynamic routes)
+  const [slug, setSlug] = useState('')
   const [post, setPost] = useState<BlogPost | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    const parts = window.location.pathname.replace(/\/+$/, '').split('/')
+    const s = parts[parts.length - 1] || ''
+    if (s && s !== 'blog') setSlug(s)
+  }, [])
 
   useEffect(() => {
     if (!slug) return
