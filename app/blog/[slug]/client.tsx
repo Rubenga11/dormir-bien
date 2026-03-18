@@ -7,20 +7,79 @@ import { apiUrl } from '@/lib/api'
 import type { BlogPost } from '@/types'
 
 function markdownToHtml(md: string): string {
-  let html = md
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-  html = html.split('\n\n').map(p => {
-    const trimmed = p.trim()
-    if (!trimmed || /^<h[1-3]>/.test(trimmed)) return trimmed
-    return `<p>${trimmed}</p>`
-  }).join('\n')
-  return html
+  const lines = md.split('\n')
+  const out: string[] = []
+  let inList = false
+  let inBlockquote = false
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    // Escape HTML
+    line = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+    const trimmed = line.trim()
+    if (!trimmed) {
+      if (inList) { out.push('</ul>'); inList = false }
+      if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false }
+      out.push('')
+      continue
+    }
+
+    // Inline formatting
+    line = line
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+
+    // Headings
+    if (/^\s*### (.+)$/.test(trimmed)) {
+      if (inList) { out.push('</ul>'); inList = false }
+      if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false }
+      out.push(trimmed.replace(/^### (.+)$/, '<h3>$1</h3>'))
+      continue
+    }
+    if (/^\s*## (.+)$/.test(trimmed)) {
+      if (inList) { out.push('</ul>'); inList = false }
+      if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false }
+      out.push(trimmed.replace(/^## (.+)$/, '<h2>$1</h2>'))
+      continue
+    }
+    if (/^\s*# (.+)$/.test(trimmed)) {
+      if (inList) { out.push('</ul>'); inList = false }
+      if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false }
+      out.push(trimmed.replace(/^# (.+)$/, '<h1>$1</h1>'))
+      continue
+    }
+
+    // List items
+    if (/^\s*- (.+)$/.test(trimmed)) {
+      if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false }
+      if (!inList) { out.push('<ul>'); inList = true }
+      out.push(`<li>${trimmed.replace(/^- /, '')}</li>`)
+      continue
+    }
+
+    // Blockquote
+    if (/^\s*&gt; (.+)$/.test(trimmed)) {
+      if (inList) { out.push('</ul>'); inList = false }
+      const content = trimmed.replace(/^&gt; /, '')
+      if (!inBlockquote) { out.push('<blockquote>'); inBlockquote = true }
+      out.push(`<p>${content}</p>`)
+      continue
+    }
+
+    // Close open blocks before paragraph
+    if (inList) { out.push('</ul>'); inList = false }
+    if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false }
+
+    // Regular paragraph
+    out.push(`<p>${trimmed}</p>`)
+  }
+
+  if (inList) out.push('</ul>')
+  if (inBlockquote) out.push('</blockquote>')
+
+  return out.join('\n')
 }
 
 export default function BlogPostClient() {
@@ -79,8 +138,25 @@ export default function BlogPostClient() {
 
   const bodyHtml = markdownToHtml(post.body)
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.description,
+    datePublished: post.created_at,
+    dateModified: post.updated_at,
+    author: { '@type': 'Organization', name: 'BreatheCalm' },
+    publisher: { '@type': 'Organization', name: 'BreatheCalm', url: 'https://breathecalm.es' },
+    mainEntityOfPage: `https://breathecalm.es/blog/${slug}`,
+    ...(post.image_url ? { image: post.image_url } : {}),
+  }
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="stars-bg" aria-hidden="true" />
       <div className="aurora-bg" aria-hidden="true">
         <div className="aurora-blob a1" />
