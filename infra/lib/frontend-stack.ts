@@ -51,6 +51,13 @@ function handler(event) {
     return request;
   }
 
+  // Dynamic routes — rewrite to the SSG placeholder shell
+  // /blog/{slug} → /blog/_/index.html (client-side fetches real content)
+  if (uri.match(/^\\/blog\\/[^/]+\\/?$/)) {
+    request.uri = '/blog/_/index.html';
+    return request;
+  }
+
   // Append trailing slash if missing, then index.html
   if (!uri.endsWith('/')) {
     uri += '/';
