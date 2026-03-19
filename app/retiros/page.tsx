@@ -9,11 +9,6 @@ interface RetreatWithPlazas extends Retreat {
   plazas_disponibles: number | null
 }
 
-const GENERO_OPTS = ['Hombre', 'Mujer', 'Otro']
-const EDAD_OPTS = ['18–24', '25–34', '35–44', '45–54', '55–64', '65+']
-const MEDICACION_OPTS = ['Sí, habitualmente', 'A veces', 'No']
-const HORAS_OPTS = ['Menos de 5h', '5–6h', '6–7h', '7–8h', 'Más de 8h']
-
 function formatDateRange(inicio: string, fin: string): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }
   const a = new Date(inicio + 'T00:00:00').toLocaleDateString('es-ES', opts)
@@ -51,26 +46,8 @@ export default function RetirosPage() {
     }
   }, [])
 
-  const handleDirectRegister = async (retreat: RetreatWithPlazas) => {
-    const uid = localStorage.getItem('breathe_uid')
-    if (!uid) { setSelectedRetreat(retreat); return }
-
-    setSubmitting(true)
-    try {
-      const res = await fetch(apiUrl('/api/retiros/registro'), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: uid, retreatId: retreat.id }),
-      })
-      if (res.ok) {
-        setRegisteredIds(prev => [...prev, retreat.id])
-        fetchRetreats()
-        showToast('Inscripción confirmada')
-      } else {
-        const err = await res.json().catch(() => ({}))
-        showToast(err.error || 'Error al inscribirse')
-      }
-    } catch { showToast('Error de conexión') }
-    setSubmitting(false)
+  const handleRegisterClick = (retreat: RetreatWithPlazas) => {
+    setSelectedRetreat(retreat)
   }
 
   const handleFormRegister = async (e: FormEvent<HTMLFormElement>) => {
@@ -79,17 +56,15 @@ export default function RetirosPage() {
     setSubmitting(true)
 
     const fd = new FormData(e.currentTarget)
-    const body = {
+    const uid = localStorage.getItem('breathe_uid')
+    const body: Record<string, string | undefined> = {
       retreatId: selectedRetreat.id,
-      genero: fd.get('genero') as string,
-      edad: fd.get('edad') as string,
-      medicacion: fd.get('medicacion') as string,
-      ciudad: fd.get('ciudad') as string,
-      cp: fd.get('cp') as string,
-      horas_sueno: fd.get('horas_sueno') as string,
-      email: fd.get('email') as string || '',
-      consiente_email: fd.get('consiente_email') === 'on',
+      nombre: (fd.get('nombre') as string).trim(),
+      apellidos: (fd.get('apellidos') as string).trim(),
+      email: (fd.get('email') as string).trim(),
+      telefono: (fd.get('telefono') as string).trim(),
     }
+    if (uid) body.userId = uid
 
     try {
       const res = await fetch(apiUrl('/api/retiros/registro'), {
@@ -98,12 +73,7 @@ export default function RetirosPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        localStorage.setItem('breathe_uid', data.userId)
-        localStorage.setItem('breathe_profile', JSON.stringify({
-          genero: body.genero, edad: body.edad, medicacion: body.medicacion,
-          ciudad: body.ciudad, cp: body.cp, horas_sueno: body.horas_sueno,
-          email: body.email,
-        }))
+        if (data.userId) localStorage.setItem('breathe_uid', data.userId)
         setRegisteredIds(prev => [...prev, selectedRetreat.id])
         setSelectedRetreat(null)
         fetchRetreats()
@@ -200,7 +170,7 @@ export default function RetirosPage() {
                     <button
                       className="btn-primary text-[0.58rem] px-6 py-2"
                       disabled={submitting}
-                      onClick={() => handleDirectRegister(retreat)}
+                      onClick={() => handleRegisterClick(retreat)}
                     >
                       {submitting ? 'Procesando…' : 'Inscribirse'}
                     </button>
@@ -211,7 +181,7 @@ export default function RetirosPage() {
           })}
         </div>
 
-        {/* Registration form modal */}
+        {/* Registration form modal — always shown, contact fields only */}
         {selectedRetreat && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
             <div className="chart-box w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -220,56 +190,26 @@ export default function RetirosPage() {
               </div>
               <h3 className="font-serif text-moon text-lg mb-4">{selectedRetreat.title}</h3>
               <p className="text-[0.68rem] text-star/60 mb-4">
-                Completa tu perfil para reservar tu plaza
+                Introduce tus datos de contacto para reservar tu plaza
               </p>
 
               <form onSubmit={handleFormRegister} className="flex flex-col gap-3">
                 <div>
-                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Género</label>
-                  <select name="genero" className="form-input" required>
-                    <option value="">Seleccionar</option>
-                    {GENERO_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
+                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Nombre</label>
+                  <input name="nombre" className="form-input" required placeholder="Tu nombre" />
                 </div>
                 <div>
-                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Edad</label>
-                  <select name="edad" className="form-input" required>
-                    <option value="">Seleccionar</option>
-                    {EDAD_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">¿Tomas medicación para dormir?</label>
-                  <select name="medicacion" className="form-input" required>
-                    <option value="">Seleccionar</option>
-                    {MEDICACION_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Ciudad</label>
-                    <input name="ciudad" className="form-input" required />
-                  </div>
-                  <div>
-                    <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Código postal</label>
-                    <input name="cp" className="form-input" required />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Horas de sueño habituales</label>
-                  <select name="horas_sueno" className="form-input" required>
-                    <option value="">Seleccionar</option>
-                    {HORAS_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
+                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Apellidos</label>
+                  <input name="apellidos" className="form-input" required placeholder="Tus apellidos" />
                 </div>
                 <div>
                   <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Email</label>
-                  <input name="email" type="email" className="form-input" />
+                  <input name="email" type="email" className="form-input" required placeholder="tu@email.com" />
                 </div>
-                <label className="flex items-center gap-2 text-[0.58rem] text-star/70 cursor-pointer">
-                  <input type="checkbox" name="consiente_email" className="accent-[var(--glow)]" />
-                  Acepto recibir información y novedades por email
-                </label>
+                <div>
+                  <label className="text-[0.52rem] text-lavender tracking-widest uppercase">Teléfono</label>
+                  <input name="telefono" type="tel" className="form-input" required placeholder="+34 600 000 000" />
+                </div>
 
                 <div className="flex gap-2 mt-2">
                   <button type="submit" className="btn-primary text-[0.58rem] px-6 py-2" disabled={submitting}>

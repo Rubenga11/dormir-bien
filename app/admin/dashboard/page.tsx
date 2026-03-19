@@ -1,8 +1,8 @@
 'use client'
 // app/admin/dashboard/page.tsx — Dashboard completo con pestañas
-import { useState, useEffect, useCallback, FormEvent } from 'react'
+import React, { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { BlogPost, Retreat } from '@/types'
+import type { BlogPost, Retreat, RetreatRegistration } from '@/types'
 import { apiUrl } from '@/lib/api'
 
 function getToken(): string | null {
@@ -330,6 +330,9 @@ export default function AdminDashboard() {
   const [retreats, setRetreats] = useState<Retreat[]>([])
   const [retreatsLoaded, setRetreatsLoaded] = useState(false)
   const [editingRetreat, setEditingRetreat] = useState<Retreat | null>(null)
+  const [retreatRegistrations, setRetreatRegistrations] = useState<Record<string, RetreatRegistration[]>>({})
+  const [expandedRetreat, setExpandedRetreat] = useState<string | null>(null)
+  const [loadingRegs, setLoadingRegs] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const router = useRouter()
 
@@ -533,6 +536,26 @@ export default function AdminDashboard() {
     } catch {
       showToast('Error de conexión al guardar retiro')
     }
+  }
+
+  const toggleRetreatRegistrations = async (retreatId: string) => {
+    if (expandedRetreat === retreatId) { setExpandedRetreat(null); return }
+    setExpandedRetreat(retreatId)
+    if (retreatRegistrations[retreatId]) return
+    setLoadingRegs(true)
+    try {
+      const res = await authFetch(`/api/admin/retreats?registrations=${retreatId}`)
+      if (res.ok) {
+        const regs = await res.json()
+        setRetreatRegistrations(prev => ({ ...prev, [retreatId]: regs }))
+      }
+    } catch { showToast('Error al cargar inscritos') }
+    setLoadingRegs(false)
+  }
+
+  const copyEmails = (regs: RetreatRegistration[]) => {
+    const emails = regs.map(r => r.email).filter(Boolean).join(', ')
+    navigator.clipboard.writeText(emails).then(() => showToast('Emails copiados al portapapeles'))
   }
 
   const handleRetreatDelete = async (id: string) => {
@@ -1355,26 +1378,73 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {retreats.map(r => (
-                      <tr key={r.id} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.title}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.ubicacion || '–'}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.fecha_inicio ? (r.fecha_inicio === r.fecha_fin ? r.fecha_inicio.slice(0,10) : `${r.fecha_inicio.slice(0,10)} → ${r.fecha_fin?.slice(0,10)}`) : '–'}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.price} &euro;</td>
-                        <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.plazas}</td>
-                        <td className="px-3 py-2.5 border-b border-white/5">
-                          <span className={r.published ? 'pill pill-y' : 'pill pill-n'}>
-                            {r.published ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 border-b border-white/5">
-                          <div className="flex gap-2">
-                            <button className="btn-ghost text-[0.5rem] px-3 py-1" onClick={() => setEditingRetreat(r)}>Editar</button>
-                            <button className="btn-ghost text-[0.5rem] px-3 py-1 border-red-400/30 text-red-300 hover:border-red-400" onClick={() => handleRetreatDelete(r.id)}>Eliminar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {retreats.map(r => {
+                      const regs = retreatRegistrations[r.id]
+                      const isExpanded = expandedRetreat === r.id
+                      return (
+                        <React.Fragment key={r.id}>
+                          <tr className="hover:bg-white/[0.02] transition-colors">
+                            <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.title}</td>
+                            <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.ubicacion || '–'}</td>
+                            <td className="px-3 py-2.5 border-b border-white/5 text-lavender">{r.fecha_inicio ? (r.fecha_inicio === r.fecha_fin ? r.fecha_inicio.slice(0,10) : `${r.fecha_inicio.slice(0,10)} → ${r.fecha_fin?.slice(0,10)}`) : '–'}</td>
+                            <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.price} &euro;</td>
+                            <td className="px-3 py-2.5 border-b border-white/5 text-star">{r.plazas}</td>
+                            <td className="px-3 py-2.5 border-b border-white/5">
+                              <span className={r.published ? 'pill pill-y' : 'pill pill-n'}>
+                                {r.published ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5 border-b border-white/5">
+                              <div className="flex gap-2">
+                                <button className="btn-ghost text-[0.5rem] px-3 py-1" onClick={() => toggleRetreatRegistrations(r.id)}>
+                                  {isExpanded ? 'Ocultar' : `Inscritos${regs ? ` (${regs.length})` : ''}`}
+                                </button>
+                                <button className="btn-ghost text-[0.5rem] px-3 py-1" onClick={() => setEditingRetreat(r)}>Editar</button>
+                                <button className="btn-ghost text-[0.5rem] px-3 py-1 border-red-400/30 text-red-300 hover:border-red-400" onClick={() => handleRetreatDelete(r.id)}>Eliminar</button>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={7} className="px-3 py-3 border-b border-white/5 bg-white/[0.02]">
+                                {loadingRegs && !regs ? (
+                                  <p className="text-[0.58rem] text-lavender/50">Cargando inscritos…</p>
+                                ) : regs && regs.length > 0 ? (
+                                  <>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-[0.52rem] text-lavender tracking-widest uppercase">{regs.length} inscrito{regs.length !== 1 ? 's' : ''}</span>
+                                      <button className="btn-ghost text-[0.5rem] px-3 py-1" onClick={() => copyEmails(regs)}>Copiar emails</button>
+                                    </div>
+                                    <table className="w-full border-collapse text-[0.58rem]">
+                                      <thead>
+                                        <tr>
+                                          {['Nombre','Apellidos','Email','Teléfono','Fecha inscripción'].map(h => (
+                                            <th key={h} className="text-left text-lavender tracking-widest text-[0.48rem] uppercase px-2 py-1.5 border-b border-white/10">{h}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {regs.map(reg => (
+                                          <tr key={reg.id} className="hover:bg-white/[0.02]">
+                                            <td className="px-2 py-1.5 border-b border-white/5 text-star">{reg.nombre}</td>
+                                            <td className="px-2 py-1.5 border-b border-white/5 text-star">{reg.apellidos}</td>
+                                            <td className="px-2 py-1.5 border-b border-white/5 text-lavender">{reg.email}</td>
+                                            <td className="px-2 py-1.5 border-b border-white/5 text-lavender">{reg.telefono}</td>
+                                            <td className="px-2 py-1.5 border-b border-white/5 text-lavender">{new Date(reg.created_at).toLocaleDateString('es-ES')}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </>
+                                ) : (
+                                  <p className="text-[0.58rem] text-lavender/50">Sin inscripciones</p>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

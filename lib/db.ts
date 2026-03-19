@@ -57,4 +57,5 @@ export {
   getRetreatRegistrationCount,
   getUserRetreatRegistrations,
   registerForRetreat,
+  getRetreatRegistrations,
 } from './supabase/db'

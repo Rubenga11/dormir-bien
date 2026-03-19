@@ -1,6 +1,6 @@
 // lib/supabase/db.ts — Implementación real con Supabase
 import { createAdminClient } from './server'
-import type { NombrePatron, BlogPost, Retreat } from '@/types'
+import type { NombrePatron, BlogPost, Retreat, RetreatRegistration } from '@/types'
 
 function sb() { return createAdminClient() }
 
@@ -641,7 +641,7 @@ export async function getUserRetreatRegistrations(userId: string): Promise<strin
   return (data || []).map((r: any) => r.retreat_id)
 }
 
-export async function registerForRetreat(userId: string, retreatId: string): Promise<{ id: string }> {
+export async function registerForRetreat(userId: string, retreatId: string, contact: { nombre: string; apellidos: string; email: string; telefono: string }): Promise<{ id: string }> {
   // Check retreat exists and has capacity
   const retreat = await getRetreatById(retreatId)
   if (!retreat) throw Object.assign(new Error('Retiro no encontrado'), { status: 404 })
@@ -651,11 +651,24 @@ export async function registerForRetreat(userId: string, retreatId: string): Pro
     if (count >= retreat.plazas) throw Object.assign(new Error('No quedan plazas disponibles'), { status: 409 })
   }
 
-  const { data, error } = await sb().from('retreat_registrations').insert({ user_id: userId, retreat_id: retreatId }).select('id').single()
+  const { data, error } = await sb().from('retreat_registrations').insert({
+    user_id: userId, retreat_id: retreatId,
+    nombre: contact.nombre, apellidos: contact.apellidos,
+    email: contact.email, telefono: contact.telefono,
+  }).select('id').single()
   if (error) {
     if (error.code === '23505') throw Object.assign(new Error('Ya estás inscrito en este retiro'), { status: 409 })
     if (error.message?.includes('retreat_registrations')) throw Object.assign(new Error('Sistema de inscripciones no disponible. Contacta al administrador.'), { status: 503 })
     throw error
   }
   return { id: data.id }
+}
+
+export async function getRetreatRegistrations(retreatId: string): Promise<RetreatRegistration[]> {
+  const { data, error } = await sb().from('retreat_registrations').select('*').eq('retreat_id', retreatId).order('created_at', { ascending: true })
+  if (error) {
+    console.error('getRetreatRegistrations error:', error.message)
+    return []
+  }
+  return (data || []) as RetreatRegistration[]
 }

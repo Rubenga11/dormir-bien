@@ -1,6 +1,6 @@
 // app/api/retiros/registro/route.ts — POST inscripción a retiro
 import { NextRequest, NextResponse } from 'next/server'
-import { insertUser, registerForRetreat } from '@/lib/db'
+import { registerForRetreat } from '@/lib/db'
 import { parseJsonBody } from '@/lib/parse-body'
 
 export async function POST(req: NextRequest) {
@@ -9,27 +9,20 @@ export async function POST(req: NextRequest) {
     const { retreatId } = body
     if (!retreatId) return NextResponse.json({ error: 'retreatId requerido' }, { status: 400 })
 
-    let userId = body.userId as string | undefined
+    // Contact fields are always required
+    const nombre = (body.nombre as string || '').trim()
+    const apellidos = (body.apellidos as string || '').trim()
+    const email = (body.email as string || '').trim()
+    const telefono = (body.telefono as string || '').trim()
 
-    // If no userId, create a new user from registration fields
-    if (!userId) {
-      if (!body.genero || !body.edad || !body.medicacion || !body.ciudad || !body.cp || !body.horas_sueno) {
-        return NextResponse.json({ error: 'Campos de registro incompletos' }, { status: 400 })
-      }
-      const user = await insertUser({
-        genero: body.genero,
-        edad: body.edad,
-        medicacion: body.medicacion,
-        ciudad: body.ciudad,
-        cp: body.cp,
-        horas_sueno: body.horas_sueno,
-        email: body.email || null,
-        consiente_email: body.consiente_email ?? false,
-      })
-      userId = user.id
+    if (!nombre || !apellidos || !email || !telefono) {
+      return NextResponse.json({ error: 'Nombre, apellidos, email y teléfono son obligatorios' }, { status: 400 })
     }
 
-    const reg = await registerForRetreat(userId, retreatId)
+    // Use provided userId or generate a placeholder
+    const userId = (body.userId as string) || 'anon-' + crypto.randomUUID()
+
+    const reg = await registerForRetreat(userId, retreatId, { nombre, apellidos, email, telefono })
     return NextResponse.json({ id: reg.id, userId }, { status: 201 })
   } catch (err: any) {
     const status = err.status || 500

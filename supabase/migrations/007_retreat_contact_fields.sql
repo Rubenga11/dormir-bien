@@ -1,0 +1,6 @@
+-- 007: Add contact fields to retreat_registrations
+ALTER TABLE retreat_registrations
+  ADD COLUMN IF NOT EXISTS nombre TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS apellidos TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT '';

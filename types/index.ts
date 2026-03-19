@@ -121,5 +121,9 @@ export interface RetreatRegistration {
   id: string
   user_id: string
   retreat_id: string
+  nombre: string
+  apellidos: string
+  email: string
+  telefono: string
   created_at: string
 }

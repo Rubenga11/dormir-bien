@@ -2,12 +2,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
-import { getRetreats, getRetreatById, insertRetreat, updateRetreat, deleteRetreat } from '@/lib/db'
+import { getRetreats, getRetreatById, insertRetreat, updateRetreat, deleteRetreat, getRetreatRegistrations } from '@/lib/db'
 import { authCheck } from '@/lib/auth'
 import { parseJsonBody } from '@/lib/parse-body'
 
 export async function GET(req: NextRequest) {
   if (!authCheck(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const registrationsFor = searchParams.get('registrations')
+  if (registrationsFor) {
+    const regs = await getRetreatRegistrations(registrationsFor)
+    return NextResponse.json(regs)
+  }
+
   return NextResponse.json(await getRetreats())
 }
 
