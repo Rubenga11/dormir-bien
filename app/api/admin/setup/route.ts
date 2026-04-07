@@ -1,7 +1,6 @@
 // app/api/admin/setup/route.ts — Auto-migration endpoint
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { createAdminClient } from '@/lib/supabase/server'
 import { authCheck } from '@/lib/auth'
 

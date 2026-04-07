@@ -21,7 +21,8 @@ const nextConfig = {
     output: 'standalone',
   } : {}),
 
-  // Security + CORS headers (only when not static export)
+  // Security headers (only when not static export)
+  // CORS is handled by middleware.ts
   ...(buildTarget !== 'frontend' ? {
     async headers() {
       return [
@@ -32,14 +33,6 @@ const nextConfig = {
             { key: 'X-Frame-Options', value: 'DENY' },
             { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
             { key: 'Permissions-Policy', value: 'screen-wake-lock=(*), microphone=()' },
-          ],
-        },
-        {
-          source: '/api/:path*',
-          headers: [
-            { key: 'Access-Control-Allow-Origin', value: process.env.CORS_ORIGIN || '*' },
-            { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PATCH,DELETE,OPTIONS' },
-            { key: 'Access-Control-Allow-Headers', value: 'Content-Type,Authorization' },
           ],
         },
       ]

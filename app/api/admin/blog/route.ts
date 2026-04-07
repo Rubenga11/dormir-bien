@@ -1,7 +1,6 @@
 // app/api/admin/blog/route.ts — CRUD admin blog
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { getBlogPosts, getBlogPostById, insertBlogPost, updateBlogPost, deleteBlogPost } from '@/lib/db'
 import { authCheck } from '@/lib/auth'
 import { parseJsonBody } from '@/lib/parse-body'

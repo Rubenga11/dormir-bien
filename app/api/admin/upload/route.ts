@@ -1,7 +1,6 @@
 // app/api/admin/upload/route.ts — Upload de imágenes via AWS S3
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { randomUUID } from 'crypto'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { authCheck } from '@/lib/auth'

@@ -20,7 +20,3 @@ export async function POST(req: NextRequest) {
   })
   return res
 }
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204 })
-}

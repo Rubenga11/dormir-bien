@@ -1,7 +1,6 @@
 // app/api/admin/retreats/route.ts — CRUD admin retiros
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { getRetreats, getRetreatById, insertRetreat, updateRetreat, deleteRetreat, getRetreatRegistrations } from '@/lib/db'
 import { authCheck } from '@/lib/auth'
 import { parseJsonBody } from '@/lib/parse-body'

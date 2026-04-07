@@ -1,7 +1,6 @@
 // app/api/sessions/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function OPTIONS() { return new NextResponse(null, { status: 204 }) }
 import { insertSession, updateSession, getMostUsedPattern, updateUser } from '@/lib/db'
 import { parseJsonBody } from '@/lib/parse-body'
 
