@@ -4,6 +4,28 @@ import type { NombrePatron, BlogPost, Retreat, RetreatRegistration } from '@/typ
 
 function sb() { return createAdminClient() }
 
+// Retry helper for transient Supabase errors
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      lastErr = err
+      const msg = err?.message || ''
+      // Only retry on connection/timeout errors, not validation errors
+      if (msg.includes('FetchError') || msg.includes('ECONNRESET') || msg.includes('timeout') || msg.includes('503')) {
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 300 * (attempt + 1)))
+          continue
+        }
+      }
+      throw err
+    }
+  }
+  throw lastErr
+}
+
 // ── Helpers
 function slugify(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -18,26 +40,28 @@ export async function insertUser(data: {
   horas_sueno: string; email?: string | null; consiente_email?: boolean
   tecnica_favorita?: string | null; ip_hash?: string | null; user_agent?: string | null; country?: string | null
 }): Promise<{ id: string }> {
-  const row_data: Record<string, unknown> = {
-    genero: data.genero, edad: data.edad, medicacion: data.medicacion,
-    localidad: data.ciudad, cp: data.cp, horas_sueno: data.horas_sueno,
-    tecnica_favorita: data.tecnica_favorita || null,
-    ip_hash: data.ip_hash || null, user_agent: data.user_agent || null,
-    country: data.country || null,
-  }
-  if (data.email) row_data.email = data.email
-  if (data.consiente_email !== undefined) row_data.consiente_email = data.consiente_email
-  const { data: row, error } = await sb().from('users').insert(row_data).select('id').single()
-  if (error && (error.message?.includes('email') || error.message?.includes('consiente'))) {
-    // Retry without email columns if they don't exist yet
-    delete row_data.email
-    delete row_data.consiente_email
-    const { data: row2, error: error2 } = await sb().from('users').insert(row_data).select('id').single()
-    if (error2) throw error2
-    return { id: row2.id }
-  }
-  if (error) throw error
-  return { id: row.id }
+  return withRetry(async () => {
+    const row_data: Record<string, unknown> = {
+      genero: data.genero, edad: data.edad, medicacion: data.medicacion,
+      localidad: data.ciudad, cp: data.cp, horas_sueno: data.horas_sueno,
+      tecnica_favorita: data.tecnica_favorita || null,
+      ip_hash: data.ip_hash || null, user_agent: data.user_agent || null,
+      country: data.country || null,
+    }
+    if (data.email) row_data.email = data.email
+    if (data.consiente_email !== undefined) row_data.consiente_email = data.consiente_email
+    const { data: row, error } = await sb().from('users').insert(row_data).select('id').single()
+    if (error && (error.message?.includes('email') || error.message?.includes('consiente'))) {
+      // Retry without email columns if they don't exist yet
+      delete row_data.email
+      delete row_data.consiente_email
+      const { data: row2, error: error2 } = await sb().from('users').insert(row_data).select('id').single()
+      if (error2) throw error2
+      return { id: row2.id }
+    }
+    if (error) throw error
+    return { id: row.id }
+  })
 }
 
 export async function getUsers() {
@@ -64,23 +88,26 @@ export async function updateUser(id: string, updates: Record<string, unknown>): 
 export async function insertSession(data: {
   user_id?: string | null; patron: string; duracion_segundos?: number | null; completada?: boolean
 }): Promise<{ id: string }> {
-  const { data: row, error } = await sb().from('sessions').insert({
-    user_id: data.user_id || null, patron: data.patron,
-    duracion_segundos: data.duracion_segundos || null, completada: data.completada || false,
-  }).select('id').single()
-  if (error) {
-    console.error('insertSession error:', error.message)
-    throw error
-  }
-  // increment global counter only if insert succeeded
-  await sb().rpc('increment_sessions')
-  return { id: row.id }
+  return withRetry(async () => {
+    const { data: row, error } = await sb().from('sessions').insert({
+      user_id: data.user_id || null, patron: data.patron,
+      duracion_segundos: data.duracion_segundos || null, completada: data.completada || false,
+    }).select('id').single()
+    if (error) {
+      console.error('insertSession error:', error.message)
+      throw error
+    }
+    // global_stats counter is auto-incremented by trigger_session_increment
+    return { id: row.id }
+  })
 }
 
 export async function updateSession(id: string, updates: { duracion_segundos?: number; completada?: boolean }): Promise<boolean> {
-  const { error } = await sb().from('sessions').update(updates).eq('id', id)
-  if (error) { console.error('updateSession error:', error.message); return false }
-  return true
+  return withRetry(async () => {
+    const { error } = await sb().from('sessions').update(updates).eq('id', id)
+    if (error) { console.error('updateSession error:', error.message); return false }
+    return true
+  })
 }
 
 export async function getSessionsByUser(userId: string) {

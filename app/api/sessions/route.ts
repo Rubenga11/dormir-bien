@@ -6,8 +6,14 @@ import { parseJsonBody } from '@/lib/parse-body'
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, patron, duracionSegundos, completada } = await parseJsonBody(req)
+    const body = await parseJsonBody(req)
 
+    // If sessionId is present, this is a completion request (e.g. from sendBeacon)
+    if (body.sessionId) {
+      return handleCompletion(body)
+    }
+
+    const { userId, patron, duracionSegundos, completada } = body
     if (!patron) return NextResponse.json({ error: 'patron requerido' }, { status: 400 })
 
     const session = await insertSession({
@@ -17,12 +23,11 @@ export async function POST(req: NextRequest) {
       completada: completada || false,
     })
 
-    // Auto-actualizar técnica favorita del usuario
+    // Auto-actualizar técnica favorita del usuario (non-blocking)
     if (userId) {
-      const topPattern = await getMostUsedPattern(userId)
-      if (topPattern) {
-        await updateUser(userId, { tecnica_favorita: topPattern })
-      }
+      getMostUsedPattern(userId).then(topPattern => {
+        if (topPattern) updateUser(userId, { tecnica_favorita: topPattern })
+      }).catch(err => console.error('[sessions] tecnica_favorita update failed:', err))
     }
 
     return NextResponse.json({ ok: true, sessionId: session.id }, { status: 201 })
@@ -30,6 +35,20 @@ export async function POST(req: NextRequest) {
     console.error('[POST /api/sessions] unexpected:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
+}
+
+async function handleCompletion(body: any) {
+  const { sessionId, duracionSegundos, completada } = body
+  if (!sessionId) return NextResponse.json({ error: 'sessionId requerido' }, { status: 400 })
+
+  const updates: { duracion_segundos?: number; completada?: boolean } = {}
+  if (duracionSegundos !== undefined) updates.duracion_segundos = Math.round(Number(duracionSegundos))
+  if (completada !== undefined) updates.completada = !!completada
+
+  const ok = await updateSession(sessionId, updates)
+  if (!ok) return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 })
+
+  return NextResponse.json({ ok: true })
 }
 
 export async function PATCH(req: NextRequest) {

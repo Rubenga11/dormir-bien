@@ -10,6 +10,7 @@ import type { BreathPattern } from '@/types'
 import { useBreathEngine } from '@/hooks/useBreathEngine'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import { apiUrl } from '@/lib/api'
+import { resilientFetch, flushQueue } from '@/lib/api-queue'
 
 // ── LocalStorage keys
 const LS_PROFILE = 'breathe_profile'  // perfil completo del usuario
@@ -61,22 +62,46 @@ export default function AppPage() {
   const { state: engineState, start, stop, togglePause, phaseLabel } = useBreathEngine()
   const { acquire: acquireWakeLock, release: releaseWakeLock } = useWakeLock()
 
-  // Comprobar perfil previo al montar + cargar stats si es recurrente
+  // Comprobar perfil previo al montar, validar UID existe en DB, cargar stats, flush cola pendiente
   useEffect(() => {
     const profile = getSavedProfile()
     if (profile) {
-      setScreen('selector')
       setForm(profile)
       const uid = localStorage.getItem(LS_UID)
       if (uid) {
+        // Validate UID exists in DB + load stats
         fetch(apiUrl(`/api/users/${uid}/stats`))
-          .then(r => r.ok ? r.json() : null)
-          .then(data => { if (data) setUserStats(data) })
-          .catch(() => {})
+          .then(r => {
+            if (r.ok) return r.json()
+            if (r.status === 404) {
+              // User no longer exists in DB — re-register
+              localStorage.removeItem(LS_UID)
+              localStorage.removeItem(LS_PROFILE)
+              setScreen('registro')
+              return null
+            }
+            return null
+          })
+          .then(data => {
+            if (data) {
+              setUserStats(data)
+              setScreen('selector')
+            }
+          })
+          .catch(() => {
+            // Network error — trust localStorage, show selector
+            setScreen('selector')
+          })
+      } else {
+        // Has profile but no UID — registration failed previously, re-register
+        setScreen('registro')
       }
     } else {
       setScreen('registro')
     }
+
+    // Flush any pending operations from previous failed requests
+    flushQueue().catch(() => {})
   }, [])
 
   const showToast = useCallback((msg: string) => {
@@ -112,20 +137,26 @@ export default function AppPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profileData),
       })
-      const data = await res.json()
-      if (data.id) {
-        localStorage.setItem(LS_UID, data.id)
-      } else {
-        showToast('Error al registrar. Int\u00e9ntalo de nuevo.')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('[registro] API error:', res.status, err)
+        showToast(err.error || 'Error al registrar. Inténtalo de nuevo.')
         return
       }
-    } catch {
-      showToast('Error de conexi\u00f3n. Int\u00e9ntalo de nuevo.')
+      const data = await res.json()
+      if (!data.id) {
+        showToast('Error al registrar. Inténtalo de nuevo.')
+        return
+      }
+      localStorage.setItem(LS_UID, data.id)
+    } catch (err) {
+      console.error('[registro] Network error:', err)
+      showToast('Error de conexión. Inténtalo de nuevo.')
       return
     }
 
     localStorage.setItem(LS_PROFILE, JSON.stringify(profileData))
-    showToast('Listo \u00b7 elige tu ritmo')
+    showToast('Listo · elige tu ritmo')
     setTimeout(() => setScreen('selector'), 900)
   }
 
@@ -149,15 +180,18 @@ export default function AppPage() {
     const uid = localStorage.getItem(LS_UID)
 
     if (uid) {
-      try {
-        await fetch(apiUrl('/api/users'), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: uid, ...profileData }),
-        })
-      } catch {
-        // Falla silenciosamente
+      const body = JSON.stringify({ userId: uid, ...profileData })
+      const res = await resilientFetch(apiUrl('/api/users'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res && !res.ok && res.status < 500) {
+        showToast('Error al actualizar perfil')
+        return
       }
+      // If res is null (queued) or 5xx (queued), we still update localStorage
+      // The queue will retry the server update
     }
 
     localStorage.setItem(LS_PROFILE, JSON.stringify(profileData))
@@ -189,19 +223,24 @@ export default function AppPage() {
     sessionStartRef.current = Date.now()
 
     try {
-      const res = await fetch(apiUrl('/api/sessions'), {
+      const body = JSON.stringify({
+        userId:  uid,
+        patron:  selectedPattern.nombre,
+        completada: false,
+      })
+      const res = await resilientFetch(apiUrl('/api/sessions'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId:  uid,
-          patron:  selectedPattern.nombre,
-          completada: false,
-        }),
+        body,
       })
-      const data = await res.json()
-      if (data.sessionId) localStorage.setItem(LS_SID, data.sessionId)
+      if (res && res.ok) {
+        const data = await res.json()
+        if (data.sessionId) localStorage.setItem(LS_SID, data.sessionId)
+      }
+      // If res is null or error, session start was queued for retry
+      // We still allow the breathing exercise to proceed
     } catch {
-      // Falla silenciosamente
+      console.error('[session] Failed to create session record')
     }
 
     try {
@@ -211,20 +250,30 @@ export default function AppPage() {
     }
   }
 
-  // ── FINALIZAR SESIÓN (enviar completación) ──
+  // ── FINALIZAR SESIÓN (enviar completación con fallback a sendBeacon + retry queue) ──
   const finishSession = useCallback((completed: boolean) => {
     const sid = localStorage.getItem(LS_SID)
     if (!sid) return
     const duracion = Math.round((Date.now() - sessionStartRef.current) / 1000)
-    fetch(apiUrl('/api/sessions'), {
-      method: 'PATCH',
+    const body = JSON.stringify({
+      sessionId: sid,
+      duracionSegundos: duracion > 0 ? duracion : 1,
+      completada: completed,
+    })
+    const url = apiUrl('/api/sessions')
+
+    // Primary: fetch with retry queue (use POST so sendBeacon fallback works too)
+    resilientFetch(url, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: sid,
-        duracionSegundos: duracion > 0 ? duracion : 1,
-        completada: completed,
-      }),
-    }).catch(() => {})
+      body,
+    }).catch(() => {
+      // Last resort: sendBeacon (works even during page unload, always POST)
+      try {
+        navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }))
+      } catch { /* exhausted all options, queued for retry */ }
+    })
+
     localStorage.removeItem(LS_SID)
   }, [])
 
@@ -237,11 +286,13 @@ export default function AppPage() {
     setScreen('selector')
   }, [stop, releaseWakeLock, finishSession])
 
-  // Refrescar stats del usuario
+  // Refrescar stats del usuario + flush cola pendiente
   const refreshStats = useCallback(() => {
     const uid = localStorage.getItem(LS_UID)
     if (!uid) return
-    fetch(apiUrl(`/api/users/${uid}/stats`))
+    // Flush pending operations first so stats reflect them
+    flushQueue()
+      .then(() => fetch(apiUrl(`/api/users/${uid}/stats`)))
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setUserStats(data) })
       .catch(() => {})
