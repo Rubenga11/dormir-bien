@@ -5,7 +5,7 @@ import { SEO_KEYWORDS } from '@/lib/constants/content'
 
 export const metadata: Metadata = {
   title: 'Breathe — Respira como si ya estuvieras dormido',
-  description: 'Breathe reproduce la respiración del sueño profundo. Escúchala. Síguela. Tu cuerpo caerá dormido. Gratis, sin pastillas, sin meditación.',
+  description: 'Breathe reproduce la respiración del sueño profundo. Escúchala. Síguela. Tu cuerpo caerá dormido. Gratis, sin pastillas, sin esfuerzo.',
   keywords: SEO_KEYWORDS,
   authors: [{ name: 'Breathe' }],
   openGraph: {

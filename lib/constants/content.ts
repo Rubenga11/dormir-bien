@@ -5,7 +5,7 @@ export const CONTENT = {
     tagline:     'respira · duerme · descansa',
     title:       'Respira como si\nya estuvieras dormido.',
     subtitle:    'Tu cuerpo sabrá qué hacer.',
-    description: 'Breathe reproduce la respiración del sueño profundo. Escúchala. Síguela. Cae dormido sin pastillas, sin meditación, sin esfuerzo.',
+    description: 'Breathe reproduce la respiración del sueño profundo. Escúchala. Síguela. Cae dormido sin pastillas, sin esfuerzo.',
     cta:         'Empezar ahora — gratis',
     adminLink:   'acceso admin',
   },
@@ -38,7 +38,7 @@ export const CONTENT = {
       'Es lo que los investigadores del sueño llaman acoplamiento respiratorio-cardíaco. Tu frecuencia cardíaca, tu temperatura corporal y tu ritmo de respiración están sincronizados. Si manipulas uno, arrastras a los demás. Y el más fácil de controlar voluntariamente eres tú: la respiración.',
       'Breathe reproduce exactamente esos patrones. Tú solo tienes que escuchar y seguirlos.',
     ],
-    conclusion: 'Sin pastillas. Sin meditación. Sin contar ovejas.',
+    conclusion: 'Sin pastillas. Sin esfuerzo. Sin contar ovejas.',
   },
 
   patterns: {
