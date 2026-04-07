@@ -658,7 +658,7 @@ export default function AppPage() {
               onClick={e => { e.stopPropagation(); handleExit() }}
               title="Salir"
             >
-              \u2715
+              {'\u2715'}
             </button>
           </div>
         </div>
