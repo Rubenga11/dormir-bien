@@ -1,6 +1,5 @@
-// lib/db.ts — Capa de abstracción de base de datos
-// Usa Supabase en producción. Para desarrollo local sin Supabase,
-// cambiar el import a './mock/db'
+// lib/db.ts — Database abstraction layer
+// Uses PostgreSQL (RDS) via lib/postgres/db.ts
 
 export {
   insertUser,
@@ -58,4 +57,4 @@ export {
   getUserRetreatRegistrations,
   registerForRetreat,
   getRetreatRegistrations,
-} from './supabase/db'
+} from './postgres/db'

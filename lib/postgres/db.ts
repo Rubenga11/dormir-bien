@@ -1,32 +1,14 @@
-// lib/supabase/db.ts — Implementación real con Supabase
-import { createAdminClient } from './server'
+// lib/postgres/db.ts — PostgreSQL implementation (replaces Supabase)
+import { query, queryOne } from './pool'
+import { runMigrations } from './migrate'
 import type { NombrePatron, BlogPost, Retreat, RetreatRegistration } from '@/types'
 
-function sb() { return createAdminClient() }
-
-// Retry helper for transient Supabase errors
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
-  let lastErr: unknown
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn()
-    } catch (err: any) {
-      lastErr = err
-      const msg = err?.message || ''
-      // Only retry on connection/timeout errors, not validation errors
-      if (msg.includes('FetchError') || msg.includes('ECONNRESET') || msg.includes('timeout') || msg.includes('503')) {
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 300 * (attempt + 1)))
-          continue
-        }
-      }
-      throw err
-    }
-  }
-  throw lastErr
+// Ensure schema exists on first query
+let ready = false
+async function ensureReady() {
+  if (!ready) { await runMigrations(); ready = true }
 }
 
-// ── Helpers
 function slugify(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
@@ -40,45 +22,36 @@ export async function insertUser(data: {
   horas_sueno: string; email?: string | null; consiente_email?: boolean
   tecnica_favorita?: string | null; ip_hash?: string | null; user_agent?: string | null; country?: string | null
 }): Promise<{ id: string }> {
-  return withRetry(async () => {
-    const row_data: Record<string, unknown> = {
-      genero: data.genero, edad: data.edad, medicacion: data.medicacion,
-      localidad: data.ciudad, cp: data.cp, horas_sueno: data.horas_sueno,
-      tecnica_favorita: data.tecnica_favorita || null,
-      ip_hash: data.ip_hash || null, user_agent: data.user_agent || null,
-      country: data.country || null,
-    }
-    if (data.email) row_data.email = data.email
-    if (data.consiente_email !== undefined) row_data.consiente_email = data.consiente_email
-    const { data: row, error } = await sb().from('users').insert(row_data).select('id').single()
-    if (error && (error.message?.includes('email') || error.message?.includes('consiente'))) {
-      // Retry without email columns if they don't exist yet
-      delete row_data.email
-      delete row_data.consiente_email
-      const { data: row2, error: error2 } = await sb().from('users').insert(row_data).select('id').single()
-      if (error2) throw error2
-      return { id: row2.id }
-    }
-    if (error) throw error
-    return { id: row.id }
-  })
+  await ensureReady()
+  const row = await queryOne<{ id: string }>(
+    `INSERT INTO users (genero, edad, medicacion, localidad, cp, horas_sueno, tecnica_favorita, ip_hash, user_agent, country, email, consiente_email)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+    [data.genero, data.edad, data.medicacion, data.ciudad, data.cp, data.horas_sueno,
+     data.tecnica_favorita || null, data.ip_hash || null, data.user_agent || null, data.country || null,
+     data.email || null, data.consiente_email ?? false]
+  )
+  if (!row) throw new Error('Insert user returned no row')
+  return { id: row.id }
 }
 
 export async function getUsers() {
-  const { data, error } = await sb().from('users').select('*').order('created_at', { ascending: false })
-  if (error) { console.error('getUsers error:', error.message); return [] }
-  return data
+  await ensureReady()
+  return query('SELECT * FROM users ORDER BY created_at DESC')
 }
 
 export async function getUserById(id: string) {
-  const { data, error } = await sb().from('users').select('*').eq('id', id).single()
-  if (error) return undefined
-  return data
+  await ensureReady()
+  return queryOne('SELECT * FROM users WHERE id = $1', [id])
 }
 
 export async function updateUser(id: string, updates: Record<string, unknown>): Promise<boolean> {
-  const { error } = await sb().from('users').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
-  return !error
+  await ensureReady()
+  const keys = Object.keys(updates).filter(k => updates[k] !== undefined)
+  if (keys.length === 0) return false
+  const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
+  const vals = keys.map(k => updates[k])
+  const result = await query(`UPDATE users SET ${sets}, updated_at = NOW() WHERE id = $1`, [id, ...vals])
+  return true
 }
 
 // ══════════════════════════════════════════
@@ -88,31 +61,28 @@ export async function updateUser(id: string, updates: Record<string, unknown>): 
 export async function insertSession(data: {
   user_id?: string | null; patron: string; duracion_segundos?: number | null; completada?: boolean
 }): Promise<{ id: string }> {
-  return withRetry(async () => {
-    const { data: row, error } = await sb().from('sessions').insert({
-      user_id: data.user_id || null, patron: data.patron,
-      duracion_segundos: data.duracion_segundos || null, completada: data.completada || false,
-    }).select('id').single()
-    if (error) {
-      console.error('insertSession error:', error.message)
-      throw error
-    }
-    // global_stats counter is auto-incremented by trigger_session_increment
-    return { id: row.id }
-  })
+  await ensureReady()
+  const row = await queryOne<{ id: string }>(
+    `INSERT INTO sessions (user_id, patron, duracion_segundos, completada) VALUES ($1,$2,$3,$4) RETURNING id`,
+    [data.user_id || null, data.patron, data.duracion_segundos || null, data.completada || false]
+  )
+  if (!row) throw new Error('Insert session returned no row')
+  return { id: row.id }
 }
 
 export async function updateSession(id: string, updates: { duracion_segundos?: number; completada?: boolean }): Promise<boolean> {
-  return withRetry(async () => {
-    const { error } = await sb().from('sessions').update(updates).eq('id', id)
-    if (error) { console.error('updateSession error:', error.message); return false }
-    return true
-  })
+  await ensureReady()
+  const keys = Object.keys(updates).filter(k => (updates as any)[k] !== undefined)
+  if (keys.length === 0) return false
+  const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
+  const vals = keys.map(k => (updates as any)[k])
+  await query(`UPDATE sessions SET ${sets} WHERE id = $1`, [id, ...vals])
+  return true
 }
 
 export async function getSessionsByUser(userId: string) {
-  const { data } = await sb().from('sessions').select('*').eq('user_id', userId)
-  return data || []
+  await ensureReady()
+  return query('SELECT * FROM sessions WHERE user_id = $1', [userId])
 }
 
 export async function getMostUsedPattern(userId: string): Promise<NombrePatron | null> {
@@ -128,9 +98,8 @@ export async function getMostUsedPattern(userId: string): Promise<NombrePatron |
 }
 
 export async function getAllSessions() {
-  const { data, error } = await sb().from('sessions').select('*').order('created_at', { ascending: false })
-  if (error) console.error('getAllSessions error:', error.message)
-  return data || []
+  await ensureReady()
+  return query('SELECT * FROM sessions ORDER BY created_at DESC')
 }
 
 // ══════════════════════════════════════════
@@ -156,25 +125,14 @@ export async function getUsersWithStats() {
     const stats = sessionsByUser[u.id] || { total: 0, completadas: 0, duracionTotal: 0, tecnicas: {}, lastSession: null }
     const topTecnica = Object.entries(stats.tecnicas).sort((a, b) => b[1] - a[1])[0]
     return {
-      id: u.id,
-      genero: u.genero,
-      edad: u.edad,
-      medicacion: u.medicacion,
-      ciudad: u.localidad || u.ciudad,
-      cp: u.cp,
-      horas_sueno: u.horas_sueno,
-      tecnica_favorita: u.tecnica_favorita,
-      email: u.email,
-      country: u.country,
+      id: u.id, genero: u.genero, edad: u.edad, medicacion: u.medicacion,
+      ciudad: u.localidad || u.ciudad, cp: u.cp, horas_sueno: u.horas_sueno,
+      tecnica_favorita: u.tecnica_favorita, email: u.email, country: u.country,
       created_at: u.created_at,
-      // Per-user session stats
-      sesiones_total: stats.total,
-      sesiones_completadas: stats.completadas,
+      sesiones_total: stats.total, sesiones_completadas: stats.completadas,
       tasa_completacion: stats.total > 0 ? Math.round(stats.completadas * 1000 / stats.total) / 10 : 0,
-      duracion_total: stats.duracionTotal,
-      tecnicas_usadas: stats.tecnicas,
-      tecnica_mas_usada: topTecnica ? topTecnica[0] : null,
-      ultima_sesion: stats.lastSession,
+      duracion_total: stats.duracionTotal, tecnicas_usadas: stats.tecnicas,
+      tecnica_mas_usada: topTecnica ? topTecnica[0] : null, ultima_sesion: stats.lastSession,
     }
   })
 }
@@ -185,10 +143,8 @@ export async function getUsersWithStats() {
 
 export async function getDashboardSummary() {
   const users = await getUsers()
-  const { data: sessions, error: sessErr } = await sb().from('sessions').select('*')
-  if (sessErr) console.error('getDashboardSummary sessions error:', sessErr.message)
-  const sess = sessions || []
-  const { data: stats } = await sb().from('global_stats').select('total_sessions').eq('id', 1).single()
+  const sess = await getAllSessions()
+  const statsRow = await queryOne<{ total_sessions: number }>('SELECT total_sessions FROM global_stats WHERE id = 1')
 
   const now = Date.now()
   const sevenDaysAgo = now - 7 * 86400000
@@ -197,7 +153,7 @@ export async function getDashboardSummary() {
 
   return {
     total_usuarios: users.length,
-    total_sesiones: stats?.total_sessions || sess.length,
+    total_sesiones: statsRow?.total_sessions || sess.length,
     total_ciudades: new Set(users.map((u: any) => (u.localidad || u.ciudad)?.toLowerCase().trim())).size,
     pct_medicacion: users.length > 0
       ? Math.round(users.filter((u: any) => u.medicacion === 'Sí, habitualmente').length * 1000 / users.length) / 10 : 0,
@@ -262,7 +218,6 @@ export async function getSessionsSummary() {
   const durations = sess.filter((s: any) => s.duracion_segundos).map((s: any) => s.duracion_segundos!)
   const now = Date.now()
   const today = new Date()
-
   return {
     total, completadas,
     tasa_completacion: total > 0 ? Math.round(completadas * 1000 / total) / 10 : 0,
@@ -299,7 +254,7 @@ export async function getSessionsByDay(days: number = 90) {
     map[d.toISOString().slice(0, 10)] = { count: 0, completed: 0 }
   }
   for (const s of sess) {
-    const key = s.created_at.slice(0, 10)
+    const key = new Date(s.created_at).toISOString().slice(0, 10)
     if (map[key]) { map[key].count++; if (s.completada) map[key].completed++ }
   }
   return Object.entries(map).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date))
@@ -342,8 +297,7 @@ export async function getTecnicaByGenero() {
   const { sessions, userMap } = await getUserSessionJoin()
   const result: Record<string, Record<string, number>> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!result[user.genero]) result[user.genero] = {}
     result[user.genero][s.patron] = (result[user.genero][s.patron] || 0) + 1
   }
@@ -354,8 +308,7 @@ export async function getTecnicaByEdad() {
   const { sessions, userMap } = await getUserSessionJoin()
   const result: Record<string, Record<string, number>> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!result[user.edad]) result[user.edad] = {}
     result[user.edad][s.patron] = (result[user.edad][s.patron] || 0) + 1
   }
@@ -366,8 +319,7 @@ export async function getTecnicaByMedicacion() {
   const { sessions, userMap } = await getUserSessionJoin()
   const result: Record<string, Record<string, number>> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!result[user.medicacion]) result[user.medicacion] = {}
     result[user.medicacion][s.patron] = (result[user.medicacion][s.patron] || 0) + 1
   }
@@ -378,8 +330,7 @@ export async function getCompletionByMedicacion() {
   const { sessions, userMap } = await getUserSessionJoin()
   const data: Record<string, { total: number; completed: number }> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!data[user.medicacion]) data[user.medicacion] = { total: 0, completed: 0 }
     data[user.medicacion].total++
     if (s.completada) data[user.medicacion].completed++
@@ -394,8 +345,7 @@ export async function getDuracionByEdad() {
   const data: Record<string, number[]> = {}
   for (const s of sessions) {
     if (!s.duracion_segundos) continue
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!data[user.edad]) data[user.edad] = []
     data[user.edad].push(s.duracion_segundos)
   }
@@ -409,8 +359,7 @@ export async function getHorasSuenoByTecnica() {
   const { sessions, userMap } = await getUserSessionJoin()
   const result: Record<string, Record<string, number>> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!result[s.patron]) result[s.patron] = {}
     result[s.patron][user.horas_sueno] = (result[s.patron][user.horas_sueno] || 0) + 1
   }
@@ -421,8 +370,7 @@ export async function getMedicacionByHorasSueno() {
   const { sessions, userMap } = await getUserSessionJoin()
   const result: Record<string, Record<string, number>> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
+    const user = userMap.get(s.user_id); if (!user) continue
     if (!result[user.horas_sueno]) result[user.horas_sueno] = {}
     result[user.horas_sueno][user.medicacion] = (result[user.horas_sueno][user.medicacion] || 0) + 1
   }
@@ -451,10 +399,8 @@ export async function getSessionsByCountry() {
   const { sessions, userMap } = await getUserSessionJoin()
   const counts: Record<string, number> = {}
   for (const s of sessions) {
-    const user = userMap.get(s.user_id)
-    if (!user) continue
-    const c = user.country || 'Desconocido'
-    counts[c] = (counts[c] || 0) + 1
+    const user = userMap.get(s.user_id); if (!user) continue
+    counts[user.country || 'Desconocido'] = (counts[user.country || 'Desconocido'] || 0) + 1
   }
   return Object.entries(counts).map(([country, count]) => ({ country, count })).sort((a, b) => b.count - a.count)
 }
@@ -482,7 +428,6 @@ export async function getGeoTable() {
 
 // ══════════════════════════════════════════
 // BLOG
-// DB columns: id, titulo, slug, extracto, contenido, imagen_url, publicado, created_at, updated_at
 // ══════════════════════════════════════════
 
 function blogRowToPost(row: any): BlogPost {
@@ -495,152 +440,125 @@ function blogRowToPost(row: any): BlogPost {
 }
 
 export async function insertBlogPost(data: Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'>): Promise<BlogPost> {
-  const { data: row, error } = await sb().from('blog_posts').insert({
-    titulo: data.title, slug: slugify(data.title),
-    extracto: data.description, contenido: data.body,
-    imagen_url: data.image_url, publicado: data.published,
-  }).select().single()
-  if (error) throw error
+  await ensureReady()
+  const row = await queryOne(
+    `INSERT INTO blog_posts (titulo, slug, extracto, contenido, imagen_url, publicado)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [data.title, slugify(data.title), data.description, data.body, data.image_url, data.published]
+  )
+  if (!row) throw new Error('Insert blog post returned no row')
   return blogRowToPost(row)
 }
 
 export async function getBlogPosts(): Promise<BlogPost[]> {
-  const { data } = await sb().from('blog_posts').select('*').order('created_at', { ascending: false })
-  return (data || []).map(blogRowToPost)
+  await ensureReady()
+  const rows = await query('SELECT * FROM blog_posts ORDER BY created_at DESC')
+  return rows.map(blogRowToPost)
 }
 
 export async function getPublishedBlogPosts(): Promise<BlogPost[]> {
-  const { data } = await sb().from('blog_posts').select('*').eq('publicado', true).order('created_at', { ascending: false })
-  return (data || []).map(blogRowToPost)
+  await ensureReady()
+  const rows = await query('SELECT * FROM blog_posts WHERE publicado = true ORDER BY created_at DESC')
+  return rows.map(blogRowToPost)
 }
 
 export async function getBlogPostById(id: string): Promise<BlogPost | undefined> {
-  const { data } = await sb().from('blog_posts').select('*').eq('id', id).single()
-  return data ? blogRowToPost(data) : undefined
+  await ensureReady()
+  const row = await queryOne('SELECT * FROM blog_posts WHERE id = $1', [id])
+  return row ? blogRowToPost(row) : undefined
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
-  const { data } = await sb().from('blog_posts').select('*').eq('slug', slug).eq('publicado', true).single()
-  return data ? blogRowToPost(data) : undefined
+  await ensureReady()
+  const row = await queryOne('SELECT * FROM blog_posts WHERE slug = $1 AND publicado = true', [slug])
+  return row ? blogRowToPost(row) : undefined
 }
 
 export async function updateBlogPost(id: string, updates: Partial<Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'>>): Promise<boolean> {
-  const patch: any = { updated_at: new Date().toISOString() }
-  if (updates.title !== undefined) { patch.titulo = updates.title; patch.slug = slugify(updates.title) }
-  if (updates.description !== undefined) patch.extracto = updates.description
-  if (updates.body !== undefined) patch.contenido = updates.body
-  if (updates.image_url !== undefined) patch.imagen_url = updates.image_url
-  if (updates.published !== undefined) patch.publicado = updates.published
-  const { error } = await sb().from('blog_posts').update(patch).eq('id', id)
-  return !error
+  await ensureReady()
+  const sets: string[] = ['updated_at = NOW()']
+  const vals: any[] = [id]
+  let i = 2
+  if (updates.title !== undefined) { sets.push(`titulo = $${i}`, `slug = $${i+1}`); vals.push(updates.title, slugify(updates.title)); i += 2 }
+  if (updates.description !== undefined) { sets.push(`extracto = $${i++}`); vals.push(updates.description) }
+  if (updates.body !== undefined) { sets.push(`contenido = $${i++}`); vals.push(updates.body) }
+  if (updates.image_url !== undefined) { sets.push(`imagen_url = $${i++}`); vals.push(updates.image_url) }
+  if (updates.published !== undefined) { sets.push(`publicado = $${i++}`); vals.push(updates.published) }
+  await query(`UPDATE blog_posts SET ${sets.join(', ')} WHERE id = $1`, vals)
+  return true
 }
 
 export async function deleteBlogPost(id: string): Promise<boolean> {
-  const { error } = await sb().from('blog_posts').delete().eq('id', id)
-  return !error
+  await ensureReady()
+  await query('DELETE FROM blog_posts WHERE id = $1', [id])
+  return true
 }
 
 // ══════════════════════════════════════════
 // RETREATS
-// DB columns: id, nombre, descripcion, fecha_inicio, fecha_fin, precio, plazas, imagen_url, activo, created_at
 // ══════════════════════════════════════════
 
 function retreatRowToRetreat(row: any): Retreat {
-  // Handle both old schema (fecha) and new schema (fecha_inicio/fecha_fin)
-  const fecha_inicio = row.fecha_inicio || row.fecha || ''
-  const fecha_fin = row.fecha_fin || fecha_inicio
   return {
     id: row.id, title: row.nombre, description: row.descripcion || '',
     ubicacion: row.ubicacion || '',
-    fecha_inicio, fecha_fin,
-    price: Number(row.precio) || 0,
-    plazas: Number(row.plazas) || 0, image_url: row.imagen_url || '',
-    published: row.activo, created_at: row.created_at,
+    fecha_inicio: row.fecha_inicio || '', fecha_fin: row.fecha_fin || row.fecha_inicio || '',
+    price: Number(row.precio) || 0, plazas: Number(row.plazas) || 0,
+    image_url: row.imagen_url || '', published: row.activo, created_at: row.created_at,
   }
 }
 
 export async function insertRetreat(data: Omit<Retreat, 'id' | 'created_at'>): Promise<Retreat> {
-  const insertData: Record<string, unknown> = {
-    nombre: data.title, descripcion: data.description,
-    ubicacion: data.ubicacion || '',
-    fecha_inicio: data.fecha_inicio, fecha_fin: data.fecha_fin,
-    precio: data.price, plazas: data.plazas || 0,
-    imagen_url: data.image_url, activo: data.published,
-  }
-  const { data: row, error } = await sb().from('retreats').insert(insertData).select().single()
-  if (error && error.message?.includes('ubicacion')) {
-    // Fallback: ubicacion column not yet added
-    delete insertData.ubicacion
-    const { data: row2, error: error2 } = await sb().from('retreats').insert(insertData).select().single()
-    if (error2) throw error2
-    return retreatRowToRetreat(row2)
-  }
-  if (error && error.message?.includes('fecha_inicio')) {
-    // Fallback: old schema with single fecha column
-    const { data: row2, error: error2 } = await sb().from('retreats').insert({
-      nombre: data.title, descripcion: data.description,
-      fecha: data.fecha_inicio, precio: data.price, plazas: data.plazas || 0,
-      imagen_url: data.image_url, activo: data.published,
-    }).select().single()
-    if (error2) throw error2
-    return retreatRowToRetreat(row2)
-  }
-  if (error) throw error
+  await ensureReady()
+  const row = await queryOne(
+    `INSERT INTO retreats (nombre, descripcion, ubicacion, fecha_inicio, fecha_fin, precio, plazas, imagen_url, activo)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [data.title, data.description, data.ubicacion || '', data.fecha_inicio, data.fecha_fin,
+     data.price, data.plazas || 0, data.image_url, data.published]
+  )
+  if (!row) throw new Error('Insert retreat returned no row')
   return retreatRowToRetreat(row)
 }
 
 export async function getRetreats(): Promise<Retreat[]> {
-  const { data } = await sb().from('retreats').select('*').order('created_at', { ascending: false })
-  return (data || []).map(retreatRowToRetreat)
+  await ensureReady()
+  return (await query('SELECT * FROM retreats ORDER BY created_at DESC')).map(retreatRowToRetreat)
 }
 
 export async function getPublishedRetreats(): Promise<Retreat[]> {
-  // Try new schema first, fall back to old
-  const { data, error } = await sb().from('retreats').select('*').eq('activo', true).order('fecha_inicio', { ascending: true })
-  if (error && error.message?.includes('fecha_inicio')) {
-    const { data: data2 } = await sb().from('retreats').select('*').eq('activo', true).order('fecha', { ascending: true })
-    return (data2 || []).map(retreatRowToRetreat)
-  }
-  return (data || []).map(retreatRowToRetreat)
+  await ensureReady()
+  return (await query('SELECT * FROM retreats WHERE activo = true ORDER BY fecha_inicio ASC')).map(retreatRowToRetreat)
 }
 
 export async function getRetreatById(id: string): Promise<Retreat | undefined> {
-  const { data } = await sb().from('retreats').select('*').eq('id', id).single()
-  return data ? retreatRowToRetreat(data) : undefined
+  await ensureReady()
+  const row = await queryOne('SELECT * FROM retreats WHERE id = $1', [id])
+  return row ? retreatRowToRetreat(row) : undefined
 }
 
 export async function updateRetreat(id: string, updates: Partial<Omit<Retreat, 'id' | 'created_at'>>): Promise<boolean> {
-  const patch: any = {}
-  if (updates.title !== undefined) patch.nombre = updates.title
-  if (updates.description !== undefined) patch.descripcion = updates.description
-  if (updates.fecha_inicio !== undefined) patch.fecha_inicio = updates.fecha_inicio
-  if (updates.fecha_fin !== undefined) patch.fecha_fin = updates.fecha_fin
-  if (updates.price !== undefined) patch.precio = updates.price
-  if (updates.plazas !== undefined) patch.plazas = updates.plazas
-  if (updates.ubicacion !== undefined) patch.ubicacion = updates.ubicacion
-  if (updates.image_url !== undefined) patch.imagen_url = updates.image_url
-  if (updates.published !== undefined) patch.activo = updates.published
-  const { error } = await sb().from('retreats').update(patch).eq('id', id)
-  if (error && error.message?.includes('ubicacion')) {
-    // Fallback: ubicacion column not yet added
-    delete patch.ubicacion
-    const { error: e2 } = await sb().from('retreats').update(patch).eq('id', id)
-    return !e2
-  }
-  if (error && error.message?.includes('fecha_inicio')) {
-    // Fallback: old schema
-    const oldPatch: any = { ...patch }
-    if (oldPatch.fecha_inicio !== undefined) { oldPatch.fecha = oldPatch.fecha_inicio; delete oldPatch.fecha_inicio }
-    delete oldPatch.fecha_fin
-    const { error: e2 } = await sb().from('retreats').update(oldPatch).eq('id', id)
-    return !e2
-  }
-  return !error
+  await ensureReady()
+  const sets: string[] = []
+  const vals: any[] = [id]
+  let i = 2
+  if (updates.title !== undefined) { sets.push(`nombre = $${i++}`); vals.push(updates.title) }
+  if (updates.description !== undefined) { sets.push(`descripcion = $${i++}`); vals.push(updates.description) }
+  if (updates.fecha_inicio !== undefined) { sets.push(`fecha_inicio = $${i++}`); vals.push(updates.fecha_inicio) }
+  if (updates.fecha_fin !== undefined) { sets.push(`fecha_fin = $${i++}`); vals.push(updates.fecha_fin) }
+  if (updates.price !== undefined) { sets.push(`precio = $${i++}`); vals.push(updates.price) }
+  if (updates.plazas !== undefined) { sets.push(`plazas = $${i++}`); vals.push(updates.plazas) }
+  if (updates.ubicacion !== undefined) { sets.push(`ubicacion = $${i++}`); vals.push(updates.ubicacion) }
+  if (updates.image_url !== undefined) { sets.push(`imagen_url = $${i++}`); vals.push(updates.image_url) }
+  if (updates.published !== undefined) { sets.push(`activo = $${i++}`); vals.push(updates.published) }
+  if (sets.length === 0) return false
+  await query(`UPDATE retreats SET ${sets.join(', ')} WHERE id = $1`, vals)
+  return true
 }
 
 export async function deleteRetreat(id: string): Promise<boolean> {
-  const { error } = await sb().from('retreats').delete().eq('id', id)
-  return !error
+  await ensureReady()
+  await query('DELETE FROM retreats WHERE id = $1', [id])
+  return true
 }
 
 // ══════════════════════════════════════════
@@ -648,28 +566,18 @@ export async function deleteRetreat(id: string): Promise<boolean> {
 // ══════════════════════════════════════════
 
 export async function getRetreatRegistrationCount(retreatId: string): Promise<number> {
-  const { count, error } = await sb().from('retreat_registrations').select('*', { count: 'exact', head: true }).eq('retreat_id', retreatId)
-  if (error) {
-    // Table may not exist yet (migration not run)
-    if (error.message?.includes('retreat_registrations')) return 0
-    console.error('getRetreatRegistrationCount error:', error.message)
-    return 0
-  }
-  return count || 0
+  await ensureReady()
+  const row = await queryOne<{ count: string }>('SELECT COUNT(*)::text AS count FROM retreat_registrations WHERE retreat_id = $1', [retreatId])
+  return parseInt(row?.count || '0', 10)
 }
 
 export async function getUserRetreatRegistrations(userId: string): Promise<string[]> {
-  const { data, error } = await sb().from('retreat_registrations').select('retreat_id').eq('user_id', userId)
-  if (error) {
-    if (error.message?.includes('retreat_registrations')) return []
-    console.error('getUserRetreatRegistrations error:', error.message)
-    return []
-  }
-  return (data || []).map((r: any) => r.retreat_id)
+  await ensureReady()
+  const rows = await query<{ retreat_id: string }>('SELECT retreat_id FROM retreat_registrations WHERE user_id = $1', [userId])
+  return rows.map(r => r.retreat_id)
 }
 
 export async function registerForRetreat(userId: string, retreatId: string, contact: { nombre: string; apellidos: string; email: string; telefono: string }): Promise<{ id: string }> {
-  // Check retreat exists and has capacity
   const retreat = await getRetreatById(retreatId)
   if (!retreat) throw Object.assign(new Error('Retiro no encontrado'), { status: 404 })
 
@@ -678,24 +586,21 @@ export async function registerForRetreat(userId: string, retreatId: string, cont
     if (count >= retreat.plazas) throw Object.assign(new Error('No quedan plazas disponibles'), { status: 409 })
   }
 
-  const { data, error } = await sb().from('retreat_registrations').insert({
-    user_id: userId, retreat_id: retreatId,
-    nombre: contact.nombre, apellidos: contact.apellidos,
-    email: contact.email, telefono: contact.telefono,
-  }).select('id').single()
-  if (error) {
-    if (error.code === '23505') throw Object.assign(new Error('Ya estás inscrito en este retiro'), { status: 409 })
-    if (error.message?.includes('retreat_registrations')) throw Object.assign(new Error('Sistema de inscripciones no disponible. Contacta al administrador.'), { status: 503 })
-    throw error
+  try {
+    const row = await queryOne<{ id: string }>(
+      `INSERT INTO retreat_registrations (user_id, retreat_id, nombre, apellidos, email, telefono)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [userId, retreatId, contact.nombre, contact.apellidos, contact.email, contact.telefono]
+    )
+    if (!row) throw new Error('Insert failed')
+    return { id: row.id }
+  } catch (err: any) {
+    if (err.code === '23505') throw Object.assign(new Error('Ya estás inscrito en este retiro'), { status: 409 })
+    throw err
   }
-  return { id: data.id }
 }
 
 export async function getRetreatRegistrations(retreatId: string): Promise<RetreatRegistration[]> {
-  const { data, error } = await sb().from('retreat_registrations').select('*').eq('retreat_id', retreatId).order('created_at', { ascending: true })
-  if (error) {
-    console.error('getRetreatRegistrations error:', error.message)
-    return []
-  }
-  return (data || []) as RetreatRegistration[]
+  await ensureReady()
+  return query<RetreatRegistration>('SELECT * FROM retreat_registrations WHERE retreat_id = $1 ORDER BY created_at ASC', [retreatId])
 }

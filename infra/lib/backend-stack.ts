@@ -1,4 +1,4 @@
-// infra/lib/backend-stack.ts — ECR + ECS Fargate + ALB + Route53
+// infra/lib/backend-stack.ts — ECR + ECS Fargate + ALB + RDS PostgreSQL + Route53
 import * as cdk from 'aws-cdk-lib'
 import * as ec2 from 'aws-cdk-lib/aws-ec2'
 import * as ecs from 'aws-cdk-lib/aws-ecs'
@@ -9,6 +9,7 @@ import * as route53 from 'aws-cdk-lib/aws-route53'
 import * as targets from 'aws-cdk-lib/aws-route53-targets'
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager'
 import * as logs from 'aws-cdk-lib/aws-logs'
+import * as rds from 'aws-cdk-lib/aws-rds'
 import { Construct } from 'constructs'
 import { EnvConfig } from './config'
 
@@ -24,18 +25,55 @@ export class BackendStack extends cdk.Stack {
     // ECR repository (created externally, shared across environments)
     const repository = ecr.Repository.fromRepositoryName(this, 'Repo', 'breathe-api')
 
-    // VPC
+    // VPC — always create private subnets for RDS (isolated)
+    const subnetConfig: ec2.SubnetConfiguration[] = [
+      { name: 'public', subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
+    ]
+    if (config.enableNat) {
+      subnetConfig.push({ name: 'private', subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS, cidrMask: 24 })
+    }
+    // Isolated subnets for RDS (no internet access needed)
+    subnetConfig.push({ name: 'db', subnetType: ec2.SubnetType.PRIVATE_ISOLATED, cidrMask: 24 })
+
     const vpc = new ec2.Vpc(this, 'Vpc', {
       maxAzs: 2,
       natGateways: config.enableNat ? 1 : 0,
-      subnetConfiguration: [
-        { name: 'public', subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
-        ...(config.enableNat ? [{
-          name: 'private',
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-          cidrMask: 24,
-        }] : []),
-      ],
+      subnetConfiguration: subnetConfig,
+    })
+
+    // ── RDS PostgreSQL ──
+
+    // Security group for RDS
+    const dbSg = new ec2.SecurityGroup(this, 'DbSg', {
+      vpc,
+      description: 'Allow ECS tasks to connect to RDS PostgreSQL',
+      allowAllOutbound: false,
+    })
+
+    // RDS credentials (auto-generated, stored in Secrets Manager)
+    const dbCredentials = rds.Credentials.fromGeneratedSecret('breathe_admin', {
+      secretName: `breathe/${config.envName}/db-credentials`,
+    })
+
+    const dbInstance = new rds.DatabaseInstance(this, 'Database', {
+      engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_16_6 }),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T3,
+        config.dbInstanceClass === 't3.micro' ? ec2.InstanceSize.MICRO : ec2.InstanceSize.SMALL,
+      ),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [dbSg],
+      credentials: dbCredentials,
+      databaseName: 'breathe',
+      allocatedStorage: config.dbAllocatedStorageGiB,
+      maxAllocatedStorage: config.dbAllocatedStorageGiB * 2,
+      backupRetention: cdk.Duration.days(config.dbBackupRetentionDays),
+      deletionProtection: config.envName === 'prd',
+      removalPolicy: config.envName === 'prd' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      multiAz: false,
+      storageEncrypted: true,
+      publiclyAccessible: false,
     })
 
     // ECS Cluster
@@ -44,7 +82,7 @@ export class BackendStack extends cdk.Stack {
       vpc,
     })
 
-    // Secrets Manager — reference existing secret
+    // Secrets Manager — reference existing secret for app config
     const appSecrets = secretsmanager.Secret.fromSecretNameV2(
       this, 'AppSecrets', `breathe/${config.envName}/app`
     )
@@ -66,6 +104,7 @@ export class BackendStack extends cdk.Stack {
       memoryLimitMiB: config.memoryMiB,
     })
 
+    // Build DATABASE_URL from RDS secret fields
     const container = taskDef.addContainer('api', {
       image: ecs.ContainerImage.fromEcrRepository(
         ecr.Repository.fromRepositoryName(this, 'ApiRepo', 'breathe-api'),
@@ -80,11 +119,16 @@ export class BackendStack extends cdk.Stack {
         CORS_ORIGIN: config.envName === 'prd'
           ? 'https://breathecalm.es'
           : 'https://dev.breathecalm.es',
+        DB_SSL: 'true',
       },
       secrets: {
-        NEXT_PUBLIC_SUPABASE_URL: ecs.Secret.fromSecretsManager(appSecrets, 'NEXT_PUBLIC_SUPABASE_URL'),
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-        SUPABASE_SERVICE_ROLE_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'SUPABASE_SERVICE_ROLE_KEY'),
+        // RDS credentials
+        DB_HOST: ecs.Secret.fromSecretsManager(dbInstance.secret!, 'host'),
+        DB_PORT: ecs.Secret.fromSecretsManager(dbInstance.secret!, 'port'),
+        DB_NAME: ecs.Secret.fromSecretsManager(dbInstance.secret!, 'dbname'),
+        DB_USER: ecs.Secret.fromSecretsManager(dbInstance.secret!, 'username'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(dbInstance.secret!, 'password'),
+        // App secrets
         ADMIN_SECRET: ecs.Secret.fromSecretsManager(appSecrets, 'ADMIN_SECRET'),
         S3_ACCESS_KEY_ID: ecs.Secret.fromSecretsManager(appSecrets, 'S3_ACCESS_KEY_ID'),
         S3_SECRET_ACCESS_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'S3_SECRET_ACCESS_KEY'),
@@ -106,11 +150,18 @@ export class BackendStack extends cdk.Stack {
       serviceName: `breathe-api-${config.envName}`,
       taskDefinition: taskDef,
       desiredCount: config.desiredCount,
-      assignPublicIp: !config.enableNat, // public IP if no NAT
+      assignPublicIp: !config.enableNat,
       vpcSubnets: {
         subnetType: config.enableNat ? ec2.SubnetType.PRIVATE_WITH_EGRESS : ec2.SubnetType.PUBLIC,
       },
     })
+
+    // Allow ECS tasks to connect to RDS
+    dbSg.addIngressRule(
+      service.connections.securityGroups[0],
+      ec2.Port.tcp(5432),
+      'Allow ECS tasks to connect to PostgreSQL'
+    )
 
     // HTTPS listener
     const listener = alb.addListener('HttpsListener', {
@@ -166,5 +217,6 @@ export class BackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApiDomain', { value: config.apiDomain })
     new cdk.CfnOutput(this, 'ClusterName', { value: cluster.clusterName })
     new cdk.CfnOutput(this, 'ServiceName', { value: service.serviceName })
+    new cdk.CfnOutput(this, 'DbEndpoint', { value: dbInstance.instanceEndpoint.hostname })
   }
 }

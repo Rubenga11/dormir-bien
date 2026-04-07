@@ -12,6 +12,9 @@ export interface EnvConfig {
   maxCapacity: number
   enableAutoScaling: boolean
   enableNat: boolean
+  dbInstanceClass: string
+  dbAllocatedStorageGiB: number
+  dbBackupRetentionDays: number
 }
 
 export const CONFIG: Record<string, EnvConfig> = {
@@ -27,6 +30,9 @@ export const CONFIG: Record<string, EnvConfig> = {
     maxCapacity: 1,
     enableAutoScaling: false,
     enableNat: false,
+    dbInstanceClass: 't3.micro',
+    dbAllocatedStorageGiB: 20,
+    dbBackupRetentionDays: 7,
   },
   prd: {
     envName: 'prd',
@@ -40,5 +46,8 @@ export const CONFIG: Record<string, EnvConfig> = {
     maxCapacity: 6,
     enableAutoScaling: true,
     enableNat: true,
+    dbInstanceClass: 't3.micro',
+    dbAllocatedStorageGiB: 20,
+    dbBackupRetentionDays: 14,
   },
 }
