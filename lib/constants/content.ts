@@ -5,7 +5,7 @@ export const CONTENT = {
     tagline:     'respira · duerme · descansa',
     title:       'Respira como si\nya estuvieras dormido.',
     subtitle:    'Tu cuerpo sabrá qué hacer.',
-    description: 'Breathe reproduce la respiración del sueño profundo. Escúchala. Síguela. Cae dormido sin pastillas, sin esfuerzo.',
+    description: 'Breathe reproduce la respiración del sueño profundo. Escúchala. Síguela. Cae dormido sin esfuerzo. Un complemento natural a cualquier tratamiento.',
     cta:         'Empezar ahora — gratis',
     adminLink:   'acceso admin',
   },
@@ -38,7 +38,7 @@ export const CONTENT = {
       'Es lo que los investigadores del sueño llaman acoplamiento respiratorio-cardíaco. Tu frecuencia cardíaca, tu temperatura corporal y tu ritmo de respiración están sincronizados. Si manipulas uno, arrastras a los demás. Y el más fácil de controlar voluntariamente eres tú: la respiración.',
       'Breathe reproduce exactamente esos patrones. Tú solo tienes que escuchar y seguirlos.',
     ],
-    conclusion: 'Sin pastillas. Sin esfuerzo. Sin contar ovejas.',
+    conclusion: 'Sin esfuerzo. Sin contar ovejas. Compatible con cualquier tratamiento.',
   },
 
   patterns: {
@@ -87,7 +87,7 @@ export const SEO_KEYWORDS = [
   'técnicas para dormir rápido',
   'respiración para dormir',
   'ejercicios respiración insomnio',
-  'insomnio sin pastillas',
+  'complemento tratamiento insomnio',
   'respiración sueño profundo',
   'app para dormir gratis',
   'método respiración dormir',
